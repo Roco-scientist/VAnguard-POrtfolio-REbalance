@@ -9,6 +9,7 @@ async fn main() {
     let alpaca = Alpaca::live(&key_id, &key).await.unwrap();
     let account = Account::get(&alpaca).await.unwrap();
     let alpaca_total = account.equity as f32;
-    let vanguard_holdings = vanguard_buy::holdings::parse_csv_download(&args.csv_path, args.clone()).unwrap();
+    let vanguard_holdings =
+        vanguard_buy::holdings::parse_csv_download(&args.csv_path, args.clone()).unwrap();
     vanguard_buy::calc::to_buy(vanguard_holdings, alpaca_total, args)
 }

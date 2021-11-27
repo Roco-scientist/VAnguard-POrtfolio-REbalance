@@ -108,12 +108,23 @@ impl Default for ShareValues {
 
 impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,
-            "VXUS: {}\nBNDX: {}\nVWO: {}\nVO: {}\nVB: {}\nVTC: {}\nVV: {}\nVMFXX: {}\nVTIVX: {}", 
-            self.vxus,self.bndx, self.vwo, self.vo, self.vb, self.vtc,self.vv,self.vmfxx,self.vtivx)
+        write!(
+            f,
+            "VXUS: {}\nBNDX: {}\nVWO: {}\nVO: {}\nVB: {}\nVTC: {}\nVV: {}\nVMFXX: {}\nVTIVX: {}",
+            self.vxus,
+            self.bndx,
+            self.vwo,
+            self.vo,
+            self.vb,
+            self.vtc,
+            self.vv,
+            self.vmfxx,
+            self.vtivx
+        )
     }
 }
 
+#[derive(Clone)]
 pub struct VanguardHoldings {
     brokerage: ShareValues,
     traditional_ira: ShareValues,
@@ -195,7 +206,10 @@ impl Default for StockInfo {
     }
 }
 
-pub fn parse_csv_download(csv_path: &str, args: crate::arguments::Args) -> Result<VanguardHoldings, Box<dyn Error>> {
+pub fn parse_csv_download(
+    csv_path: &str,
+    args: crate::arguments::Args,
+) -> Result<VanguardHoldings, Box<dyn Error>> {
     let mut header = Vec::new();
     let csv_file = File::open(csv_path)?;
     let mut accounts: HashMap<u32, ShareValues> = HashMap::new();
