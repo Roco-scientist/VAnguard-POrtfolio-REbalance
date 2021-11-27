@@ -12,7 +12,7 @@ pub enum AddType {
     HoldingValue,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct ShareValues {
     pub vxus: f32,
     pub bndx: f32,
@@ -55,7 +55,22 @@ impl ShareValues {
             "VV" => self.vv = value,
             "VMFXX" => self.vmfxx = value,
             "VTIVX" => self.vtivx = value,
-            _ => (),
+            _ => eprintln!("Stock ticker not supported: {}", stock_info.symbol),
+        }
+    }
+
+    pub fn add_stock_value(&mut self, stock_symbol: &str, value: f32) {
+        match stock_symbol {
+            "VXUS" => self.vxus = value,
+            "BNDX" => self.bndx = value,
+            "VWO" => self.vwo = value,
+            "VO" => self.vo = value,
+            "VB" => self.vb = value,
+            "VTC" => self.vtc = value,
+            "VV" => self.vv = value,
+            "VMFXX" => self.vmfxx = value,
+            "VTIVX" => self.vtivx = value,
+            _ => eprintln!("Stock ticker not supported: {}", stock_symbol),
         }
     }
 
@@ -71,7 +86,7 @@ impl ShareValues {
             + self.vtivx
     }
 
-    pub fn subtract(&self, other_value: ShareValues) -> ShareValues {
+    pub fn subtract(&self, other_value: &ShareValues) -> ShareValues {
         ShareValues {
             vxus: self.vxus - other_value.vxus,
             bndx: self.bndx - other_value.bndx,
@@ -85,7 +100,21 @@ impl ShareValues {
         }
     }
 
-    pub fn divide(&self, divisor: ShareValues) -> ShareValues {
+    pub fn add(&self, other_value: &ShareValues) -> ShareValues {
+        ShareValues {
+            vxus: self.vxus + other_value.vxus,
+            bndx: self.bndx + other_value.bndx,
+            vwo: self.vwo + other_value.vwo,
+            vo: self.vo + other_value.vo,
+            vb: self.vb + other_value.vb,
+            vtc: self.vtc + other_value.vtc,
+            vv: self.vv + other_value.vv,
+            vmfxx: self.vmfxx + other_value.vmfxx,
+            vtivx: self.vtivx + other_value.vtivx,
+        }
+    }
+
+    pub fn divide(&self, divisor: &ShareValues) -> ShareValues {
         ShareValues {
             vxus: self.vxus / divisor.vxus,
             bndx: self.bndx / divisor.bndx,
@@ -144,6 +173,43 @@ impl VanguardHoldings {
     }
     pub fn stock_quotes(&self) -> ShareValues {
         self.quotes.clone()
+    }
+}
+
+pub struct AccountHoldings {
+    current: ShareValues,
+    target: ShareValues,
+    sale_purchases_needed: ShareValues,
+}
+
+impl AccountHoldings {
+    pub fn new(current: ShareValues, target: ShareValues, sale_purchases_needed: ShareValues) -> Self{
+        AccountHoldings { current, target, sale_purchases_needed }
+    }
+}
+
+impl fmt::Display for AccountHoldings {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Symbol\tPurchase/Sales\tCurrent\tTarget\n\
+            VXUS\t{}\t${}\t${}\n\
+            BNDX\t{}\t${}\t${}\n\
+            VWO\t{}\t${}\t${}\n\
+            VO\t{}\t${}\t${}\n\
+            VB\t{}\t${}\t${}\n\
+            VTC\t{}\t${}\t${}\n\
+            VV\t{}\t${}\t${}\n\
+            VMFXX\t{}\t${}\t${}\n\
+            VTIVX\t{}\t${}\t${}\n",
+            self.sale_purchases_needed.vxus,self.current.vxus,self.target.vxus,
+            self.sale_purchases_needed.bndx,self.current.bndx,self.target.bndx,
+            self.sale_purchases_needed.vwo,self.current.vwo,self.target.vwo,
+            self.sale_purchases_needed.vo,self.current.vo,self.target.vo,
+            self.sale_purchases_needed.vb,self.current.vb,self.target.vb,
+            self.sale_purchases_needed.vtc,self.current.vtc,self.target.vtc,
+            self.sale_purchases_needed.vv,self.current.vv,self.target.vv,
+            self.sale_purchases_needed.vmfxx,self.current.vmfxx,self.target.vmfxx,
+            self.sale_purchases_needed.vtivx,self.current.vtivx,self.target.vtivx
+        )
     }
 }
 
