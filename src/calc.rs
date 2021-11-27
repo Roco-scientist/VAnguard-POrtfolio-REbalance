@@ -114,14 +114,14 @@ fn retirement_calc(
         let large_cap = overall_target.vv.min(roth_total);
         roth_total -= large_cap;
         roth_target.add_stock_value("VV", large_cap);
-        let int_bond = overall_target.vxus.min(roth_total);
+        let int_bond = overall_target.bndx.min(roth_total);
         roth_total -= int_bond;
-        roth_target.add_stock_value("VXUS", int_bond);
+        roth_target.add_stock_value("BNDX", int_bond);
         let us_bond = overall_target.vtc.min(roth_total);
         roth_total -= us_bond;
         roth_target.add_stock_value("VTC", us_bond);
         assert_eq!(roth_total, 0.0, "Unexpected leftover roth cash");
-        assert_eq!(roth_target.total_value(), roth.total_value() + added_value_roth, "Roth target and total do not match");
+        assert_eq!(roth_target.total_value(), roth.total_value() + added_value_roth, "Roth target and total do not match\n\nRoth target:\n{}\n\nRoth:\n{}\n\nRoth added: ${}", roth_target, roth, added_value_roth);
     } 
     let roth_difference = roth_target.subtract(&roth);
     let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());

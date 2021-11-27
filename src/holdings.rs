@@ -215,7 +215,7 @@ impl AccountHoldings {
 
 impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "symbol\tpurchase/sales\tcurrent\ttarget\n\
+        write!(f, "symbol\tpurchase/sales\tcurrent\t\ttarget\n\
             vxus\t{}\t${}\t${}\n\
             bndx\t{}\t${}\t${}\n\
             vwo\t{}\t${}\t${}\n\
