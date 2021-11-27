@@ -3,7 +3,7 @@ use std::{
     error::Error,
     fmt,
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     vec::Vec,
 };
 
@@ -186,20 +186,45 @@ impl AccountHoldings {
     pub fn new(current: ShareValues, target: ShareValues, sale_purchases_needed: ShareValues) -> Self{
         AccountHoldings { current, target, sale_purchases_needed }
     }
+
+    pub fn to_csv(&self, out: String) -> Result<(), Box<dyn Error>> {
+        let out_text = format!("symbol,purchase/sales,current,target\n\
+            vxus,{},${},${}\n\
+            bndx,{},${},${}\n\
+            vwo,{},${},${}\n\
+            vo,{},${},${}\n\
+            vb,{},${},${}\n\
+            vtc,{},${},${}\n\
+            vv,{},${},${}\n\
+            vmfxx,{},${},${}\n\
+            vtivx,{},${},${}\n",
+            self.sale_purchases_needed.vxus,self.current.vxus,self.target.vxus,
+            self.sale_purchases_needed.bndx,self.current.bndx,self.target.bndx,
+            self.sale_purchases_needed.vwo,self.current.vwo,self.target.vwo,
+            self.sale_purchases_needed.vo,self.current.vo,self.target.vo,
+            self.sale_purchases_needed.vb,self.current.vb,self.target.vb,
+            self.sale_purchases_needed.vtc,self.current.vtc,self.target.vtc,
+            self.sale_purchases_needed.vv,self.current.vv,self.target.vv,
+            self.sale_purchases_needed.vmfxx,self.current.vmfxx,self.target.vmfxx,
+            self.sale_purchases_needed.vtivx,self.current.vtivx,self.target.vtivx);
+        let mut out_file = File::create(out)?;
+        out_file.write_all(out_text.as_bytes())?;
+        Ok(())
+    }
 }
 
 impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Symbol\tPurchase/Sales\tCurrent\tTarget\n\
-            VXUS\t{}\t${}\t${}\n\
-            BNDX\t{}\t${}\t${}\n\
-            VWO\t{}\t${}\t${}\n\
-            VO\t{}\t${}\t${}\n\
-            VB\t{}\t${}\t${}\n\
-            VTC\t{}\t${}\t${}\n\
-            VV\t{}\t${}\t${}\n\
-            VMFXX\t{}\t${}\t${}\n\
-            VTIVX\t{}\t${}\t${}\n",
+        write!(f, "symbol\tpurchase/sales\tcurrent\ttarget\n\
+            vxus\t{}\t${}\t${}\n\
+            bndx\t{}\t${}\t${}\n\
+            vwo\t{}\t${}\t${}\n\
+            vo\t{}\t${}\t${}\n\
+            vb\t{}\t${}\t${}\n\
+            vtc\t{}\t${}\t${}\n\
+            vv\t{}\t${}\t${}\n\
+            vmfxx\t{}\t${}\t${}\n\
+            vtivx\t{}\t${}\t${}\n",
             self.sale_purchases_needed.vxus,self.current.vxus,self.target.vxus,
             self.sale_purchases_needed.bndx,self.current.bndx,self.target.bndx,
             self.sale_purchases_needed.vwo,self.current.vwo,self.target.vwo,
