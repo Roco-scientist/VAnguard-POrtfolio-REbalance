@@ -393,7 +393,8 @@ impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "symbol   purchase/sales current         target\n\
+            "Symbol   Purchase/Sell  Current         Target\n\
+            -----------------------------------------------\n\
             VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
             BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
             VWO      {:<15.2}${:<15.2}${:<15.2}\n\
