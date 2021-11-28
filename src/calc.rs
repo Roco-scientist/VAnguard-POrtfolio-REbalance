@@ -70,34 +70,34 @@ fn retirement_calc(
                     0.0,
                     0.0
                  ); 
-            overall_target.add_stock_value("VTIVX", roth_holdings.vtivx + traditional_holdings.vtivx);
+            overall_target.add_stock_value(crate::holdings::StockSymbols::VTIVX, roth_holdings.vtivx + traditional_holdings.vtivx);
             println!("Retirement target:\n{}\n", overall_target);
             let mut roth_total = roth_holdings.total_value() + added_value_roth;
             let mut roth_target = crate::holdings::ShareValues::new();
             if roth_total > 0.0 {
-                roth_target.add_stock_value("VTIVX", roth_holdings.vtivx);
+                roth_target.add_stock_value(crate::holdings::StockSymbols::VTIVX, roth_holdings.vtivx);
                 roth_total -= roth_holdings.vtivx;
                 let emerging_market = overall_target.vwo.min(roth_total);
                 roth_total -= emerging_market;
-                roth_target.add_stock_value("VWO", emerging_market);
+                roth_target.add_stock_value(crate::holdings::StockSymbols::VWO, emerging_market);
                 let foreign_market = overall_target.vxus.min(roth_total);
                 roth_total -= foreign_market;
-                roth_target.add_stock_value("VXUS", foreign_market);
+                roth_target.add_stock_value(crate::holdings::StockSymbols::VXUS, foreign_market);
                 let small_cap = overall_target.vb.min(roth_total);
                 roth_total -= small_cap;
-                roth_target.add_stock_value("VB", small_cap);
+                roth_target.add_stock_value(crate::holdings::StockSymbols::VB, small_cap);
                 let mid_cap = overall_target.vo.min(roth_total);
                 roth_total -= mid_cap;
-                roth_target.add_stock_value("VO", mid_cap);
+                roth_target.add_stock_value(crate::holdings::StockSymbols::VO, mid_cap);
                 let large_cap = overall_target.vv.min(roth_total);
                 roth_total -= large_cap;
-                roth_target.add_stock_value("VV", large_cap);
+                roth_target.add_stock_value(crate::holdings::StockSymbols::VV, large_cap);
                 let int_bond = overall_target.bndx.min(roth_total);
                 roth_total -= int_bond;
-                roth_target.add_stock_value("BNDX", int_bond);
+                roth_target.add_stock_value(crate::holdings::StockSymbols::BNDX, int_bond);
                 let us_bond = overall_target.vtc.min(roth_total);
                 roth_total -= us_bond;
-                roth_target.add_stock_value("VTC", us_bond);
+                roth_target.add_stock_value(crate::holdings::StockSymbols::VTC, us_bond);
                 assert_eq!(roth_total, 0.0, "Unexpected leftover roth cash");
                 assert_eq!(roth_target.total_value(), roth_holdings.total_value() + added_value_roth, "Roth target and total do not match\n\nRoth target:\n{}\n\nRoth:\n{}\n\nRoth added: ${}", roth_target, roth_holdings, added_value_roth);
             }
@@ -123,7 +123,7 @@ fn retirement_calc(
             let total_value = roth_holdings.total_value() + added_value_roth;
             let total_value_sub_vtivx = total_value - roth_holdings.vtivx;
             let mut roth_target = crate::holdings::ShareValues::new_target(total_value_sub_vtivx, percent_bond, percent_stock, 0.0, 0.0, 0.0, 0.0);
-            roth_target.add_stock_value("VTIVX", roth_holdings.vtivx);
+            roth_target.add_stock_value(crate::holdings::StockSymbols::VTIVX, roth_holdings.vtivx);
             let roth_difference = roth_target.subtract(&roth_holdings);
             let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());
             let roth_account = crate::holdings::AccountHoldings::new(
@@ -137,7 +137,7 @@ fn retirement_calc(
         let total_value = traditional_holdings.total_value() + added_value_trad;
         let total_value_sub_vtivx = total_value - traditional_holdings.vtivx;
         let mut traditional_target = crate::holdings::ShareValues::new_target(total_value_sub_vtivx, percent_bond, percent_stock, 0.0, 0.0, 0.0, 0.0);
-        traditional_target.add_stock_value("VTIVX", traditional_holdings.vtivx);
+        traditional_target.add_stock_value(crate::holdings::StockSymbols::VTIVX, traditional_holdings.vtivx);
         let traditional_difference = traditional_target.subtract(&traditional_holdings);
         let traditional_purchase = traditional_difference.divide(&vanguard_holdings.stock_quotes());
         let traditional_account = crate::holdings::AccountHoldings::new(
