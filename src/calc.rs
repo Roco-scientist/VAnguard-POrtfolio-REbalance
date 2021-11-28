@@ -30,7 +30,10 @@ fn brockerage_calc(
     percent_stock: f32,
     percent_bond: f32,
 ) {
-    brokerage.add_stock_value(crate::holdings::StockSymbols::VMFXX, brokerage.vmfxx + added_value);
+    brokerage.add_stock_value(
+        crate::holdings::StockSymbols::VMFXX,
+        brokerage.vmfxx + added_value,
+    );
     let target_holdings = crate::holdings::ShareValues::new_target(
         brokerage.total_value(),
         percent_bond,
@@ -55,10 +58,15 @@ fn retirement_calc(
     percent_bond: f32,
 ) {
     if let Some(mut roth_holdings) = vanguard_holdings.roth_ira_holdings() {
-        roth_holdings.add_stock_value(crate::holdings::StockSymbols::VMFXX,roth_holdings.vmfxx + added_value_roth);
+        roth_holdings.add_stock_value(
+            crate::holdings::StockSymbols::VMFXX,
+            roth_holdings.vmfxx + added_value_roth,
+        );
         if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
-            traditional_holdings
-                .add_stock_value(crate::holdings::StockSymbols::VMFXX,traditional_holdings.vmfxx + added_value_trad);
+            traditional_holdings.add_stock_value(
+                crate::holdings::StockSymbols::VMFXX,
+                traditional_holdings.vmfxx + added_value_trad,
+            );
             let total_value = roth_holdings.total_value() + traditional_holdings.total_value();
             let total_value_sub_vtivx =
                 total_value - roth_holdings.vtivx - traditional_holdings.vtivx;
@@ -104,7 +112,13 @@ fn retirement_calc(
                 roth_total -= us_bond;
                 roth_target.add_stock_value(crate::holdings::StockSymbols::VTC, us_bond);
                 assert_eq!(roth_total, 0.0, "Unexpected leftover roth cash");
-                assert!(roth_target.total_value() > (0.99 * roth_holdings.total_value()) && roth_target.total_value() < (1.01 * roth_holdings.total_value()), "Roth target and total do not match\n\nRoth target:\n{}\n\nRoth:\n{}", roth_target, roth_holdings);
+                assert!(
+                    roth_target.total_value() > (0.99 * roth_holdings.total_value())
+                        && roth_target.total_value() < (1.01 * roth_holdings.total_value()),
+                    "Roth target and total do not match\n\nRoth target:\n{}\n\nRoth:\n{}",
+                    roth_target,
+                    roth_holdings
+                );
             }
             let roth_difference = roth_target.subtract(&roth_holdings);
             let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());
@@ -146,8 +160,10 @@ fn retirement_calc(
             println!("Roth:\n{}\n", roth_account);
         }
     } else if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
-        traditional_holdings
-            .add_stock_value(crate::holdings::StockSymbols::VMFXX,traditional_holdings.vmfxx + added_value_trad);
+        traditional_holdings.add_stock_value(
+            crate::holdings::StockSymbols::VMFXX,
+            traditional_holdings.vmfxx + added_value_trad,
+        );
         let total_value_sub_vtivx = traditional_holdings.total_value() - traditional_holdings.vtivx;
         let mut traditional_target = crate::holdings::ShareValues::new_target(
             total_value_sub_vtivx,
