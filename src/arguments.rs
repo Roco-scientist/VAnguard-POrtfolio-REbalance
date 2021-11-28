@@ -10,9 +10,9 @@ pub struct Args {
     pub brokerage_add: f32,
     pub traditional_add: f32,
     pub roth_add: f32,
-    pub brok_acct: u32,
-    pub trad_acct: u32,
-    pub roth_acct: u32,
+    pub brok_acct_option: Option<u32>,
+    pub trad_acct_option: Option<u32>,
+    pub roth_acct_option: Option<u32>,
 }
 
 impl Args {
@@ -81,21 +81,21 @@ impl Args {
                 Arg::with_name("brokerage-acct")
                     .long("brokerage-acct")
                     .takes_value(true)
-                    .required(true)
+                    .required_unless_one(&["roth-acct", "trad-acct"])
                     .help("Brokerage account number"),
             )
             .arg(
                 Arg::with_name("roth-acct")
                     .long("roth-acct")
                     .takes_value(true)
-                    .required(true)
+                    .required_unless_one(&["brokerage-acct", "trad-acct"])
                     .help("Roth IRA account number"),
             )
             .arg(
                 Arg::with_name("trad-acct")
                     .long("trad-acct")
                     .takes_value(true)
-                    .required(true)
+                    .required_unless_one(&["brokerage-acct", "roth-acct"])
                     .help("Traditional IRA account number"),
             )
             .get_matches();
@@ -141,13 +141,18 @@ impl Args {
             100.0,
             "Retirement stock and bond percentage does not add up to 100"
         );
-        let brok_acct = args
-            .value_of("brokerage-acct")
-            .unwrap()
-            .parse::<u32>()
-            .unwrap();
-        let trad_acct = args.value_of("trad-acct").unwrap().parse::<u32>().unwrap();
-        let roth_acct = args.value_of("roth-acct").unwrap().parse::<u32>().unwrap();
+        let mut brok_acct_option = None;
+        if let Some(brok_acct_str) = args.value_of("brokerage-acct") {
+            brok_acct_option = Some(brok_acct_str.parse::<u32>().unwrap())
+        }
+        let mut trad_acct_option = None;
+        if let Some(trad_acct_str) = args.value_of("trad-acct") {
+            trad_acct_option = Some(trad_acct_str.parse::<u32>().unwrap())
+        }
+        let mut roth_acct_option = None;
+        if let Some(roth_acct_str) = args.value_of("roth-acct") {
+            roth_acct_option = Some(roth_acct_str.parse::<u32>().unwrap())
+        }
         Args {
             csv_path,
             percent_stock_brokerage,
@@ -157,9 +162,9 @@ impl Args {
             brokerage_add,
             traditional_add,
             roth_add,
-            brok_acct,
-            trad_acct,
-            roth_acct,
+            brok_acct_option,
+            trad_acct_option,
+            roth_acct_option,
         }
     }
 }
