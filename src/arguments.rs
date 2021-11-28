@@ -1,6 +1,10 @@
 use clap::{crate_version, App, Arg};
 
 /// Args struct holds all CLI argument values passed
+///
+/// # Panic
+///
+/// Panics if percent stock and bond do not add up to 100
 #[derive(Clone)]
 pub struct Args {
     pub csv_path: String, // Path of the downloaded vanguard transactions file

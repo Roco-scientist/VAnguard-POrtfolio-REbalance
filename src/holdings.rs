@@ -175,6 +175,22 @@ impl ShareValues {
         }
     }
 
+    pub fn stock_value(&self, stock_symbol: StockSymbols) -> f32 {
+        match stock_symbol {
+            StockSymbols::VXUS => self.vxus,
+            StockSymbols::BNDX => self.bndx,
+            StockSymbols::VWO => self.vwo,
+            StockSymbols::VO => self.vo,
+            StockSymbols::VB => self.vb,
+            StockSymbols::VTC => self.vtc,
+            StockSymbols::VV => self.vv,
+            StockSymbols::VMFXX => self.vmfxx,
+            StockSymbols::VTIVX => self.vtivx,
+            StockSymbols::Empty => panic!("Value retrieval not supported for empty stock symbol"),
+            StockSymbols::Other(symbol) => panic!("Value retrieval not supported for {}", symbol),
+        }
+    }
+
     pub fn total_value(&self) -> f32 {
         self.vxus
             + self.bndx
@@ -409,9 +425,9 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.vv,
             self.current.vv,
             self.target.vv,
+            self.sale_purchases_needed.vtivx,
             self.current.vtivx,
             self.target.vtivx,
-            self.sale_purchases_needed.vmfxx,
             self.current.vmfxx,
             self.target.vmfxx,
             self.current.total_value()
