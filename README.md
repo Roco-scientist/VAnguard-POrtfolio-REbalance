@@ -50,5 +50,5 @@ Download transaction file from within the vanguard account
 If money is being added to any of the accounts, add one of the following flags along with the amount:
 - --add-brokerage <#>
 - --add-traditional <#>
-- --add-roth <#>
+- --add-roth <#>  
 Where the latter two are for IRA additions
