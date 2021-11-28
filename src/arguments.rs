@@ -1,18 +1,19 @@
 use clap::{crate_version, App, Arg};
 
+/// Args struct holds all CLI argument values passed
 #[derive(Clone)]
 pub struct Args {
-    pub csv_path: String,
-    pub percent_stock_brokerage: f32,
-    pub percent_bond_brokerage: f32,
-    pub percent_stock_retirement: f32,
-    pub percent_bond_retirement: f32,
-    pub brokerage_add: f32,
-    pub traditional_add: f32,
-    pub roth_add: f32,
-    pub brok_acct_option: Option<u32>,
-    pub trad_acct_option: Option<u32>,
-    pub roth_acct_option: Option<u32>,
+    pub csv_path: String, // Path of the downloaded vanguard transactions file
+    pub percent_stock_brokerage: f32, // Percent of stocks for brokerage account
+    pub percent_bond_brokerage: f32, // Percent of bonds for brokerage account
+    pub percent_stock_retirement: f32, // Percent of stock for retirement account
+    pub percent_bond_retirement: f32, // Percent bond for retirement account
+    pub brokerage_add: f32, // Amount of cash added to brokerage account
+    pub traditional_add: f32, // Amount of cash added to traditional IRA account
+    pub roth_add: f32,    // Amount of cash added to Roth IRA account
+    pub brok_acct_option: Option<u32>, // Vanguard brokerage account number
+    pub trad_acct_option: Option<u32>, // Vanguard traditional IRA account number
+    pub roth_acct_option: Option<u32>, // Vanguard roth IRA account number
 }
 
 impl Args {
