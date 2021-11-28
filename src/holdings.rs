@@ -59,8 +59,6 @@ impl StockSymbols {
     }
 }
 
-
-
 #[derive(Clone, PartialEq)]
 pub struct ShareValues {
     pub vxus: f32,
@@ -149,11 +147,11 @@ impl ShareValues {
         match stock_info.symbol {
             StockSymbols::VXUS => self.vxus = value,
             StockSymbols::BNDX => self.bndx = value,
-            StockSymbols::VWO=> self.vwo = value,
-           StockSymbols::VO=> self.vo = value,
-           StockSymbols::VB=> self.vb = value,
-            StockSymbols::VTC=> self.vtc = value,
-           StockSymbols::VV=> self.vv = value,
+            StockSymbols::VWO => self.vwo = value,
+            StockSymbols::VO => self.vo = value,
+            StockSymbols::VB => self.vb = value,
+            StockSymbols::VTC => self.vtc = value,
+            StockSymbols::VV => self.vv = value,
             StockSymbols::VMFXX => self.vmfxx = value,
             StockSymbols::VTIVX => self.vtivx = value,
             StockSymbols::Empty => panic!("Stock symbol not set before adding value"),
@@ -165,11 +163,11 @@ impl ShareValues {
         match stock_symbol {
             StockSymbols::VXUS => self.vxus = value,
             StockSymbols::BNDX => self.bndx = value,
-            StockSymbols::VWO=> self.vwo = value,
-           StockSymbols::VO=> self.vo = value,
-           StockSymbols::VB=> self.vb = value,
-            StockSymbols::VTC=> self.vtc = value,
-           StockSymbols::VV=> self.vv = value,
+            StockSymbols::VWO => self.vwo = value,
+            StockSymbols::VO => self.vo = value,
+            StockSymbols::VB => self.vb = value,
+            StockSymbols::VTC => self.vtc = value,
+            StockSymbols::VV => self.vv = value,
             StockSymbols::VMFXX => self.vmfxx = value,
             StockSymbols::VTIVX => self.vtivx = value,
             StockSymbols::Empty => panic!("Stock symbol not set before adding value"),
@@ -249,8 +247,9 @@ impl fmt::Display for ShareValues {
             VB       {:.2}\n\
             VTC      {:.2}\n\
             VV       {:.2}\n\
-            VMFXX    {:.2}\n\
-            VTIVX    {:.2}",
+            VTIVX    {:.2}\n\
+            Cash     {:.2}\n\
+            Total    {:.2}",
             self.vxus,
             self.bndx,
             self.vwo,
@@ -258,8 +257,9 @@ impl fmt::Display for ShareValues {
             self.vb,
             self.vtc,
             self.vv,
+            self.vtivx,
             self.vmfxx,
-            self.vtivx
+            self.total_value(),
         )
     }
 }
@@ -385,8 +385,8 @@ impl fmt::Display for AccountHoldings {
             VB       {:<15.2}${:<15.2}${:<15.2}\n\
             VTC      {:<15.2}${:<15.2}${:<15.2}\n\
             VV       {:<15.2}${:<15.2}${:<15.2}\n\
-            VMFXX    {:<15.2}${:<15.2}${:<15.2}\n\
-            VTIVX    {:<15.2}${:<15.2}${:<15.2}\n",
+            VTIVX    {:<15.2}${:<15.2}${:<15.2}\n\
+            Cash     {:<15.2}${:<15.2}${:<15.2}\n",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,
@@ -408,12 +408,12 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.vv,
             self.current.vv,
             self.target.vv,
-            self.sale_purchases_needed.vmfxx,
-            self.current.vmfxx,
-            self.target.vmfxx,
             self.sale_purchases_needed.vtivx,
             self.current.vtivx,
-            self.target.vtivx
+            self.target.vtivx,
+            self.sale_purchases_needed.vmfxx,
+            self.current.vmfxx,
+            self.target.vmfxx
         )
     }
 }
