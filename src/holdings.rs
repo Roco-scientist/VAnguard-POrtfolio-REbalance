@@ -8,9 +8,35 @@ use std::{
     vec::Vec,
 };
 
+// Constants used for proportion of portfolio contained within each.
+// Split by stocks and bonds
+// US stock as 2/3 of total stock.  Then split by 3 for Large, medium, and small cap
+const US_STOCK_FRACTION: f32 = 2.0 / 3.0;
+const EACH_US_STOCK: f32 = US_STOCK_FRACTION / 3.0;
+// International stock as 1/3 of total stock.  Then 1/3 of that as emerging markets and 2/3 as
+// total international
+const INT_STOCK_FRACTION: f32 = 1.0 / 3.0;
+const INT_EMERGING: f32 = INT_STOCK_FRACTION / 3.0;
+const INT_TOTAL: f32 = INT_STOCK_FRACTION * 2.0 / 3.0;
+// 2/3 of total bonds in US corporate bonds, 1/3 in internation bonds
+const US_BOND_FRACTION: f32 = 2.0 / 3.0;
+const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
+
 pub enum AddType {
     StockPrice,
     HoldingValue,
+}
+
+pub enum StockSymbols {
+    VXUS,
+    BNDX,
+    VWO,
+    VO,
+    VB,
+    VTC,
+    VV,
+    VMFXX,
+    VTIVX,
 }
 
 #[derive(Clone, PartialEq)]
@@ -36,6 +62,45 @@ impl ShareValues {
             vb: 0.0,
             vtc: 0.0,
             vv: 0.0,
+            vmfxx: 0.0,
+            vtivx: 0.0,
+        }
+    }
+    pub fn new_target(
+        total_vanguard_value: f32,
+        percent_bond: f32,
+        percent_stock: f32,
+        other_us_stock_value: f32,
+        other_us_bond_value: f32,
+        other_int_bond_value: f32,
+        other_int_stock_value: f32,
+    ) -> Self {
+        let total_percent = INT_TOTAL * percent_stock / 100.0
+            + INT_BOND_FRACTION * percent_bond / 100.0
+            + INT_EMERGING * percent_stock / 100.0
+            + EACH_US_STOCK * percent_stock / 100.0
+            + EACH_US_STOCK * percent_stock / 100.0
+            + US_BOND_FRACTION * percent_bond / 100.0
+            + EACH_US_STOCK * percent_stock / 100.0;
+        assert_eq!(total_percent, 1.0, "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
+        let total_value = total_vanguard_value
+            + other_us_stock_value
+            + other_us_bond_value
+            + other_int_bond_value
+            + other_int_stock_value;
+        ShareValues {
+            vxus: (total_value * INT_TOTAL * percent_stock / 100.0)
+                - (other_int_stock_value * 2.0 / 3.0),
+            bndx: (total_value * INT_BOND_FRACTION * percent_bond / 100.0) - other_int_bond_value,
+            vwo: (total_value * INT_EMERGING * percent_stock / 100.0)
+                - (other_int_stock_value / 3.0),
+            vo: (total_value * EACH_US_STOCK * percent_stock / 100.0)
+                - (other_us_stock_value / 3.0),
+            vb: (total_value * EACH_US_STOCK * percent_stock / 100.0)
+                - (other_us_stock_value / 3.0),
+            vtc: (total_value * US_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value),
+            vv: (total_value * EACH_US_STOCK * percent_stock / 100.0)
+                - (other_us_stock_value / 3.0),
             vmfxx: 0.0,
             vtivx: 0.0,
         }
@@ -140,7 +205,15 @@ impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "VXUS: {}\nBNDX: {}\nVWO: {}\nVO: {}\nVB: {}\nVTC: {}\nVV: {}\nVMFXX: {}\nVTIVX: {}",
+            "VXUS     {:.2}\n\
+            BNDX     {:.2}\n\
+            VWO      {:.2}\n\
+            VO       {:.2}\n\
+            VB       {:.2}\n\
+            VTC      {:.2}\n\
+            VV       {:.2}\n\
+            VMFXX    {:.2}\n\
+            VTIVX    {:.2}",
             self.vxus,
             self.bndx,
             self.vwo,
@@ -267,16 +340,16 @@ impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "symbol\tpurchase/sales\tcurrent\t\ttarget\n\
-            vxus\t{}\t${}\t${}\n\
-            bndx\t{}\t${}\t${}\n\
-            vwo\t{}\t${}\t${}\n\
-            vo\t{}\t${}\t${}\n\
-            vb\t{}\t${}\t${}\n\
-            vtc\t{}\t${}\t${}\n\
-            vv\t{}\t${}\t${}\n\
-            vmfxx\t{}\t${}\t${}\n\
-            vtivx\t{}\t${}\t${}\n",
+            "symbol   purchase/sales current         target\n\
+            VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
+            BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
+            VWO      {:<15.2}${:<15.2}${:<15.2}\n\
+            VO       {:<15.2}${:<15.2}${:<15.2}\n\
+            VB       {:<15.2}${:<15.2}${:<15.2}\n\
+            VTC      {:<15.2}${:<15.2}${:<15.2}\n\
+            VV       {:<15.2}${:<15.2}${:<15.2}\n\
+            VMFXX    {:<15.2}${:<15.2}${:<15.2}\n\
+            VTIVX    {:<15.2}${:<15.2}${:<15.2}\n",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,
@@ -367,13 +440,11 @@ impl Default for StockInfo {
     }
 }
 
-
 custom_error! {AccountNumberError
     Brokerage = "Brokerage account number not found within vanguard download file",
     TraditionIra =  "Traditional IRA account number not found within vanguard download file",
     RothIra =  "Roth IRA account number not found within vanguard download file",
 }
-
 
 pub fn parse_csv_download(
     csv_path: &str,
@@ -420,7 +491,7 @@ pub fn parse_csv_download(
     if let Some(brokerage_acct) = args.brok_acct_option {
         if let Some(brokerage_holdings) = accounts.get(&brokerage_acct) {
             brokerage = Some(brokerage_holdings.clone())
-        }else{
+        } else {
             return Err(Box::new(AccountNumberError::Brokerage));
         }
     }
@@ -429,7 +500,7 @@ pub fn parse_csv_download(
     if let Some(traditional_acct) = args.trad_acct_option {
         if let Some(traditional_holdings) = accounts.get(&traditional_acct) {
             traditional_ira = Some(traditional_holdings.clone())
-        }else{
+        } else {
             return Err(Box::new(AccountNumberError::TraditionIra));
         }
     }
@@ -438,7 +509,7 @@ pub fn parse_csv_download(
     if let Some(roth_acct) = args.roth_acct_option {
         if let Some(roth_holdings) = accounts.get(&roth_acct) {
             roth_ira = Some(roth_holdings.clone())
-        }else{
+        } else {
             return Err(Box::new(AccountNumberError::RothIra));
         }
     }

@@ -1,11 +1,3 @@
-const US_STOCK_FRACTION: f32 = 2.0 / 3.0;
-const EACH_US_STOCK: f32 = US_STOCK_FRACTION / 3.0;
-const INT_STOCK_FRACTION: f32 = 1.0 / 3.0;
-const INT_EMERGING: f32 = INT_STOCK_FRACTION / 3.0;
-const INT_TOTAL: f32 = INT_STOCK_FRACTION * 2.0 / 3.0;
-const US_BOND_FRACTION: f32 = 2.0 / 3.0;
-const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
-
 pub fn to_buy(
     vanguard_holdings: crate::holdings::VanguardHoldings,
     alpaca_holdings: f32,
@@ -33,36 +25,25 @@ pub fn to_buy(
 fn brockerage_calc(
     quotes: crate::holdings::ShareValues,
     brokerage: crate::holdings::ShareValues,
-    alpaca_holdings: f32,
+    other_us_stock_value: f32,
     added_value: f32,
     percent_stock: f32,
     percent_bond: f32,
 ) {
-    let total_value = brokerage.total_value() + alpaca_holdings + added_value;
-    let target_holdings = crate::holdings::ShareValues {
-        vxus: total_value * INT_TOTAL * percent_stock / 100.0,
-        bndx: total_value * INT_BOND_FRACTION * percent_bond / 100.0,
-        vwo: total_value * INT_EMERGING * percent_stock / 100.0,
-        vo: (total_value * EACH_US_STOCK * percent_stock / 100.0) - (alpaca_holdings / 3.0),
-        vb: (total_value * EACH_US_STOCK * percent_stock / 100.0) - (alpaca_holdings / 3.0),
-        vtc: total_value * US_BOND_FRACTION * percent_bond / 100.0,
-        vv: (total_value * EACH_US_STOCK * percent_stock / 100.0) - (alpaca_holdings / 3.0),
-        vmfxx: 0.0,
-        vtivx: 0.0,
-    };
-    let total_percent = INT_TOTAL * percent_stock / 100.0
-        + INT_BOND_FRACTION * percent_bond / 100.0
-        + INT_EMERGING * percent_stock / 100.0
-        + EACH_US_STOCK * percent_stock / 100.0
-        + EACH_US_STOCK * percent_stock / 100.0
-        + US_BOND_FRACTION * percent_bond / 100.0
-        + EACH_US_STOCK * percent_stock / 100.0;
-    assert_eq!(total_percent, 1.0, "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
+    let target_holdings = crate::holdings::ShareValues::new_target(
+        brokerage.total_value() + added_value,
+        percent_bond,
+        percent_stock,
+        other_us_stock_value,
+        0.0,
+        0.0,
+        0.0,
+    );
     let difference = target_holdings.subtract(&brokerage);
     let stock_purchase = difference.divide(&quotes);
-    let brokerage_holdings =
+    let brokerage_account =
         crate::holdings::AccountHoldings::new(brokerage, target_holdings, stock_purchase);
-    println!("Brokerage:\n{}\n", brokerage_holdings);
+    println!("Brokerage:\n{}\n", brokerage_account);
 }
 
 fn retirement_calc(
@@ -72,15 +53,6 @@ fn retirement_calc(
     percent_stock: f32,
     percent_bond: f32,
 ) {
-    let total_percent = INT_TOTAL * percent_stock / 100.0
-        + INT_BOND_FRACTION * percent_bond / 100.0
-        + INT_EMERGING * percent_stock / 100.0
-        + EACH_US_STOCK * percent_stock / 100.0
-        + EACH_US_STOCK * percent_stock / 100.0
-        + US_BOND_FRACTION * percent_bond / 100.0
-        + EACH_US_STOCK * percent_stock / 100.0;
-    assert_eq!(total_percent, 1.0, "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
-
     if let Some(roth_holdings) = vanguard_holdings.roth_ira_holdings() {
         if let Some(traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
             let total_value = roth_holdings.total_value()
@@ -89,17 +61,16 @@ fn retirement_calc(
                 + added_value_trad;
             let total_value_sub_vtivx =
                 total_value - roth_holdings.vtivx - traditional_holdings.vtivx;
-            let overall_target = crate::holdings::ShareValues {
-                vxus: total_value_sub_vtivx * INT_TOTAL * percent_stock / 100.0,
-                bndx: total_value_sub_vtivx * INT_BOND_FRACTION * percent_bond / 100.0,
-                vwo: total_value_sub_vtivx * INT_EMERGING * percent_stock / 100.0,
-                vo: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-                vb: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-                vtc: total_value_sub_vtivx * US_BOND_FRACTION * percent_bond / 100.0,
-                vv: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-                vmfxx: 0.0,
-                vtivx: roth_holdings.vtivx + traditional_holdings.vtivx,
-            };
+            let mut overall_target = crate::holdings::ShareValues::new_target(
+                    total_value_sub_vtivx,
+                    percent_bond,
+                    percent_stock,
+                    0.0, 
+                    0.0, 
+                    0.0,
+                    0.0
+                 ); 
+            overall_target.add_stock_value("VTIVX", roth_holdings.vtivx + traditional_holdings.vtivx);
             println!("Retirement target:\n{}\n", overall_target);
             let mut roth_total = roth_holdings.total_value() + added_value_roth;
             let mut roth_target = crate::holdings::ShareValues::new();
@@ -151,17 +122,8 @@ fn retirement_calc(
         } else {
             let total_value = roth_holdings.total_value() + added_value_roth;
             let total_value_sub_vtivx = total_value - roth_holdings.vtivx;
-            let roth_target = crate::holdings::ShareValues {
-                vxus: total_value_sub_vtivx * INT_TOTAL * percent_stock / 100.0,
-                bndx: total_value_sub_vtivx * INT_BOND_FRACTION * percent_bond / 100.0,
-                vwo: total_value_sub_vtivx * INT_EMERGING * percent_stock / 100.0,
-                vo: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-                vb: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-                vtc: total_value_sub_vtivx * US_BOND_FRACTION * percent_bond / 100.0,
-                vv: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-                vmfxx: 0.0,
-                vtivx: roth_holdings.vtivx,
-            };
+            let mut roth_target = crate::holdings::ShareValues::new_target(total_value_sub_vtivx, percent_bond, percent_stock, 0.0, 0.0, 0.0, 0.0);
+            roth_target.add_stock_value("VTIVX", roth_holdings.vtivx);
             let roth_difference = roth_target.subtract(&roth_holdings);
             let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());
             let roth_account = crate::holdings::AccountHoldings::new(
@@ -174,17 +136,8 @@ fn retirement_calc(
     } else if let Some(traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
         let total_value = traditional_holdings.total_value() + added_value_trad;
         let total_value_sub_vtivx = total_value - traditional_holdings.vtivx;
-        let traditional_target = crate::holdings::ShareValues {
-            vxus: total_value_sub_vtivx * INT_TOTAL * percent_stock / 100.0,
-            bndx: total_value_sub_vtivx * INT_BOND_FRACTION * percent_bond / 100.0,
-            vwo: total_value_sub_vtivx * INT_EMERGING * percent_stock / 100.0,
-            vo: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-            vb: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-            vtc: total_value_sub_vtivx * US_BOND_FRACTION * percent_bond / 100.0,
-            vv: total_value_sub_vtivx * EACH_US_STOCK * percent_stock / 100.0,
-            vmfxx: 0.0,
-            vtivx: traditional_holdings.vtivx,
-        };
+        let mut traditional_target = crate::holdings::ShareValues::new_target(total_value_sub_vtivx, percent_bond, percent_stock, 0.0, 0.0, 0.0, 0.0);
+        traditional_target.add_stock_value("VTIVX", traditional_holdings.vtivx);
         let traditional_difference = traditional_target.subtract(&traditional_holdings);
         let traditional_purchase = traditional_difference.divide(&vanguard_holdings.stock_quotes());
         let traditional_account = crate::holdings::AccountHoldings::new(
