@@ -1,3 +1,4 @@
+use custom_error::custom_error;
 use std::{
     collections::HashMap,
     error::Error,
@@ -153,22 +154,43 @@ impl fmt::Display for ShareValues {
     }
 }
 
+pub enum HoldingType {
+    Brokerage,
+    TraditionalIra,
+    RothIra,
+}
+
 #[derive(Clone)]
 pub struct VanguardHoldings {
-    brokerage: ShareValues,
-    traditional_ira: ShareValues,
-    roth_ira: ShareValues,
+    brokerage: Option<ShareValues>,
+    traditional_ira: Option<ShareValues>,
+    roth_ira: Option<ShareValues>,
     quotes: ShareValues,
 }
 
 impl VanguardHoldings {
-    pub fn brockerage_holdings(&self) -> ShareValues {
+    pub fn new(quotes: ShareValues) -> Self {
+        VanguardHoldings {
+            brokerage: None,
+            traditional_ira: None,
+            roth_ira: None,
+            quotes,
+        }
+    }
+    pub fn add_holding(&mut self, holding: ShareValues, holding_type: HoldingType) {
+        match holding_type {
+            HoldingType::RothIra => self.roth_ira = Some(holding),
+            HoldingType::Brokerage => self.brokerage = Some(holding),
+            HoldingType::TraditionalIra => self.traditional_ira = Some(holding),
+        }
+    }
+    pub fn brockerage_holdings(&self) -> Option<ShareValues> {
         self.brokerage.clone()
     }
-    pub fn traditional_ira_holdings(&self) -> ShareValues {
+    pub fn traditional_ira_holdings(&self) -> Option<ShareValues> {
         self.traditional_ira.clone()
     }
-    pub fn roth_ira_holdings(&self) -> ShareValues {
+    pub fn roth_ira_holdings(&self) -> Option<ShareValues> {
         self.roth_ira.clone()
     }
     pub fn stock_quotes(&self) -> ShareValues {
@@ -183,12 +205,21 @@ pub struct AccountHoldings {
 }
 
 impl AccountHoldings {
-    pub fn new(current: ShareValues, target: ShareValues, sale_purchases_needed: ShareValues) -> Self{
-        AccountHoldings { current, target, sale_purchases_needed }
+    pub fn new(
+        current: ShareValues,
+        target: ShareValues,
+        sale_purchases_needed: ShareValues,
+    ) -> Self {
+        AccountHoldings {
+            current,
+            target,
+            sale_purchases_needed,
+        }
     }
 
     pub fn to_csv(&self, out: String) -> Result<(), Box<dyn Error>> {
-        let out_text = format!("symbol,purchase/sales,current,target\n\
+        let out_text = format!(
+            "symbol,purchase/sales,current,target\n\
             vxus,{},${},${}\n\
             bndx,{},${},${}\n\
             vwo,{},${},${}\n\
@@ -198,15 +229,34 @@ impl AccountHoldings {
             vv,{},${},${}\n\
             vmfxx,{},${},${}\n\
             vtivx,{},${},${}\n",
-            self.sale_purchases_needed.vxus,self.current.vxus,self.target.vxus,
-            self.sale_purchases_needed.bndx,self.current.bndx,self.target.bndx,
-            self.sale_purchases_needed.vwo,self.current.vwo,self.target.vwo,
-            self.sale_purchases_needed.vo,self.current.vo,self.target.vo,
-            self.sale_purchases_needed.vb,self.current.vb,self.target.vb,
-            self.sale_purchases_needed.vtc,self.current.vtc,self.target.vtc,
-            self.sale_purchases_needed.vv,self.current.vv,self.target.vv,
-            self.sale_purchases_needed.vmfxx,self.current.vmfxx,self.target.vmfxx,
-            self.sale_purchases_needed.vtivx,self.current.vtivx,self.target.vtivx);
+            self.sale_purchases_needed.vxus,
+            self.current.vxus,
+            self.target.vxus,
+            self.sale_purchases_needed.bndx,
+            self.current.bndx,
+            self.target.bndx,
+            self.sale_purchases_needed.vwo,
+            self.current.vwo,
+            self.target.vwo,
+            self.sale_purchases_needed.vo,
+            self.current.vo,
+            self.target.vo,
+            self.sale_purchases_needed.vb,
+            self.current.vb,
+            self.target.vb,
+            self.sale_purchases_needed.vtc,
+            self.current.vtc,
+            self.target.vtc,
+            self.sale_purchases_needed.vv,
+            self.current.vv,
+            self.target.vv,
+            self.sale_purchases_needed.vmfxx,
+            self.current.vmfxx,
+            self.target.vmfxx,
+            self.sale_purchases_needed.vtivx,
+            self.current.vtivx,
+            self.target.vtivx
+        );
         let mut out_file = File::create(out)?;
         out_file.write_all(out_text.as_bytes())?;
         Ok(())
@@ -215,7 +265,9 @@ impl AccountHoldings {
 
 impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "symbol\tpurchase/sales\tcurrent\t\ttarget\n\
+        write!(
+            f,
+            "symbol\tpurchase/sales\tcurrent\t\ttarget\n\
             vxus\t{}\t${}\t${}\n\
             bndx\t{}\t${}\t${}\n\
             vwo\t{}\t${}\t${}\n\
@@ -225,15 +277,33 @@ impl fmt::Display for AccountHoldings {
             vv\t{}\t${}\t${}\n\
             vmfxx\t{}\t${}\t${}\n\
             vtivx\t{}\t${}\t${}\n",
-            self.sale_purchases_needed.vxus,self.current.vxus,self.target.vxus,
-            self.sale_purchases_needed.bndx,self.current.bndx,self.target.bndx,
-            self.sale_purchases_needed.vwo,self.current.vwo,self.target.vwo,
-            self.sale_purchases_needed.vo,self.current.vo,self.target.vo,
-            self.sale_purchases_needed.vb,self.current.vb,self.target.vb,
-            self.sale_purchases_needed.vtc,self.current.vtc,self.target.vtc,
-            self.sale_purchases_needed.vv,self.current.vv,self.target.vv,
-            self.sale_purchases_needed.vmfxx,self.current.vmfxx,self.target.vmfxx,
-            self.sale_purchases_needed.vtivx,self.current.vtivx,self.target.vtivx
+            self.sale_purchases_needed.vxus,
+            self.current.vxus,
+            self.target.vxus,
+            self.sale_purchases_needed.bndx,
+            self.current.bndx,
+            self.target.bndx,
+            self.sale_purchases_needed.vwo,
+            self.current.vwo,
+            self.target.vwo,
+            self.sale_purchases_needed.vo,
+            self.current.vo,
+            self.target.vo,
+            self.sale_purchases_needed.vb,
+            self.current.vb,
+            self.target.vb,
+            self.sale_purchases_needed.vtc,
+            self.current.vtc,
+            self.target.vtc,
+            self.sale_purchases_needed.vv,
+            self.current.vv,
+            self.target.vv,
+            self.sale_purchases_needed.vmfxx,
+            self.current.vmfxx,
+            self.target.vmfxx,
+            self.sale_purchases_needed.vtivx,
+            self.current.vtivx,
+            self.target.vtivx
         )
     }
 }
@@ -297,6 +367,14 @@ impl Default for StockInfo {
     }
 }
 
+
+custom_error! {AccountNumberError
+    Brokerage = "Brokerage account number not found within vanguard download file",
+    TraditionIra =  "Traditional IRA account number not found within vanguard download file",
+    RothIra =  "Roth IRA account number not found within vanguard download file",
+}
+
+
 pub fn parse_csv_download(
     csv_path: &str,
     args: crate::arguments::Args,
@@ -304,7 +382,7 @@ pub fn parse_csv_download(
     let mut header = Vec::new();
     let csv_file = File::open(csv_path)?;
     let mut accounts: HashMap<u32, ShareValues> = HashMap::new();
-    let mut stock_quotes = ShareValues::new();
+    let mut quotes = ShareValues::new();
     for row_result in BufReader::new(csv_file).lines() {
         let row = row_result?;
         if row.contains(',') {
@@ -333,15 +411,41 @@ pub fn parse_csv_download(
                         .entry(stock_info.account_number)
                         .or_insert_with(ShareValues::new);
                     account_value.add_value(stock_info.clone(), AddType::HoldingValue);
-                    stock_quotes.add_value(stock_info, AddType::StockPrice);
+                    quotes.add_value(stock_info, AddType::StockPrice);
                 }
             }
         }
     }
+    let mut brokerage = None;
+    if let Some(brokerage_acct) = args.brok_acct_option {
+        if let Some(brokerage_holdings) = accounts.get(&brokerage_acct) {
+            brokerage = Some(brokerage_holdings.clone())
+        }else{
+            return Err(Box::new(AccountNumberError::Brokerage));
+        }
+    }
+
+    let mut traditional_ira = None;
+    if let Some(traditional_acct) = args.trad_acct_option {
+        if let Some(traditional_holdings) = accounts.get(&traditional_acct) {
+            traditional_ira = Some(traditional_holdings.clone())
+        }else{
+            return Err(Box::new(AccountNumberError::TraditionIra));
+        }
+    }
+
+    let mut roth_ira = None;
+    if let Some(roth_acct) = args.roth_acct_option {
+        if let Some(roth_holdings) = accounts.get(&roth_acct) {
+            roth_ira = Some(roth_holdings.clone())
+        }else{
+            return Err(Box::new(AccountNumberError::RothIra));
+        }
+    }
     Ok(VanguardHoldings {
-        brokerage: accounts.get(&args.brok_acct).unwrap().clone(),
-        traditional_ira: accounts.get(&args.trad_acct).unwrap().clone(),
-        roth_ira: accounts.get(&args.roth_acct).unwrap().clone(),
-        quotes: stock_quotes,
+        brokerage,
+        traditional_ira,
+        roth_ira,
+        quotes,
     })
 }
