@@ -47,8 +47,10 @@ Download transaction file from within the vanguard account
 
 ### run
 `vanguard-buy --brokerage-acct <#> --roth-acct <#> --trad-acct <#> <vanguard_csv>`  
+  
 If money is being added to any of the accounts, add one of the following flags along with the amount:
 - --add-brokerage <#>
 - --add-traditional <#>
 - --add-roth <#>  
+  
 Where the latter two are for IRA additions
