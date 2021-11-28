@@ -386,7 +386,8 @@ impl fmt::Display for AccountHoldings {
             VTC      {:<15.2}${:<15.2}${:<15.2}\n\
             VV       {:<15.2}${:<15.2}${:<15.2}\n\
             VTIVX    {:<15.2}${:<15.2}${:<15.2}\n\
-            Cash     {:<15.2}${:<15.2}${:<15.2}\n",
+            Cash                    ${:<15.2}${:<15.2}\n\
+            Total                   ${:<15.2}",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,
@@ -408,12 +409,12 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.vv,
             self.current.vv,
             self.target.vv,
-            self.sale_purchases_needed.vtivx,
             self.current.vtivx,
             self.target.vtivx,
             self.sale_purchases_needed.vmfxx,
             self.current.vmfxx,
-            self.target.vmfxx
+            self.target.vmfxx,
+            self.current.total_value()
         )
     }
 }
