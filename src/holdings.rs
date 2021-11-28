@@ -205,7 +205,15 @@ impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "VXUS: {}\nBNDX: {}\nVWO: {}\nVO: {}\nVB: {}\nVTC: {}\nVV: {}\nVMFXX: {}\nVTIVX: {}",
+            "VXUS     {:.2}\n\
+            BNDX     {:.2}\n\
+            VWO      {:.2}\n\
+            VO       {:.2}\n\
+            VB       {:.2}\n\
+            VTC      {:.2}\n\
+            VV       {:.2}\n\
+            VMFXX    {:.2}\n\
+            VTIVX    {:.2}",
             self.vxus,
             self.bndx,
             self.vwo,
@@ -332,16 +340,16 @@ impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "symbol\tpurchase/sales\tcurrent\t\ttarget\n\
-            vxus\t{}\t${}\t${}\n\
-            bndx\t{}\t${}\t${}\n\
-            vwo\t{}\t${}\t${}\n\
-            vo\t{}\t${}\t${}\n\
-            vb\t{}\t${}\t${}\n\
-            vtc\t{}\t${}\t${}\n\
-            vv\t{}\t${}\t${}\n\
-            vmfxx\t{}\t${}\t${}\n\
-            vtivx\t{}\t${}\t${}\n",
+            "symbol   purchase/sales current         target\n\
+            VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
+            BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
+            VWO      {:<15.2}${:<15.2}${:<15.2}\n\
+            VO       {:<15.2}${:<15.2}${:<15.2}\n\
+            VB       {:<15.2}${:<15.2}${:<15.2}\n\
+            VTC      {:<15.2}${:<15.2}${:<15.2}\n\
+            VV       {:<15.2}${:<15.2}${:<15.2}\n\
+            VMFXX    {:<15.2}${:<15.2}${:<15.2}\n\
+            VTIVX    {:<15.2}${:<15.2}${:<15.2}\n",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,
