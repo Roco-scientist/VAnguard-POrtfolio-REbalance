@@ -84,24 +84,24 @@ impl Args {
                     .help("Amount of cash added to the roth IRA account"),
             )
             .arg(
-                Arg::with_name("brokerage-acct")
+                Arg::with_name("acct-num-b")
                     .long("brokerage-acct")
                     .takes_value(true)
-                    .required_unless_one(&["roth-acct", "trad-acct"])
+                    .required_unless_one(&["acct-num-r", "acct-num-t"])
                     .help("Brokerage account number"),
             )
             .arg(
-                Arg::with_name("roth-acct")
+                Arg::with_name("acct-num-r")
                     .long("roth-acct")
                     .takes_value(true)
-                    .required_unless_one(&["brokerage-acct", "trad-acct"])
+                    .required_unless_one(&["acct-num-b", "acct-num-t"])
                     .help("Roth IRA account number"),
             )
             .arg(
-                Arg::with_name("trad-acct")
+                Arg::with_name("acct-num-t")
                     .long("trad-acct")
                     .takes_value(true)
-                    .required_unless_one(&["brokerage-acct", "roth-acct"])
+                    .required_unless_one(&["acct-num-b", "acct-num-r"])
                     .help("Traditional IRA account number"),
             )
             .arg(
@@ -155,15 +155,15 @@ impl Args {
             "Retirement stock and bond percentage does not add up to 100"
         );
         let mut brok_acct_option = None;
-        if let Some(brok_acct_str) = args.value_of("brokerage-acct") {
+        if let Some(brok_acct_str) = args.value_of("acct-num-b") {
             brok_acct_option = Some(brok_acct_str.parse::<u32>().unwrap())
         }
         let mut trad_acct_option = None;
-        if let Some(trad_acct_str) = args.value_of("trad-acct") {
+        if let Some(trad_acct_str) = args.value_of("acct-num-t") {
             trad_acct_option = Some(trad_acct_str.parse::<u32>().unwrap())
         }
         let mut roth_acct_option = None;
-        if let Some(roth_acct_str) = args.value_of("roth-acct") {
+        if let Some(roth_acct_str) = args.value_of("acct-num-r") {
             roth_acct_option = Some(roth_acct_str.parse::<u32>().unwrap())
         }
         let output = args.is_present("output");
