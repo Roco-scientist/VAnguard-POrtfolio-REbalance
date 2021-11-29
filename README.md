@@ -1,4 +1,4 @@
-# VAnguard-POrtoflio-REbalance VAPORE
+# VAnguard-POrtfolio-REbalance VAPORE
 Algorithm setup to determine proper spread of Vanguard ETF index funds and adjust with the downloaded vanguards transaction file.  Current allocation:  
   
 |Symbol|Description              |Type |% of type|
@@ -33,8 +33,8 @@ There is also an equal distribution among cap sizes in order to not be over inve
 ### Compile
 Install and compile from source  
 ```
-git clone https://github.com/Roco-scientist/VAnguard-POrtoflio-REbalance
-cd VAnguard-POrtoflio-REbalance
+git clone https://github.com/Roco-scientist/VAnguard-POrtfolio-REbalance
+cd VAnguard-POrtfolio-REbalance
 cargo install --path .
 ```
   
