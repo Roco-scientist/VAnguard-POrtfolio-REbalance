@@ -18,6 +18,7 @@ pub struct Args {
     pub brok_acct_option: Option<u32>, // Vanguard brokerage account number
     pub trad_acct_option: Option<u32>, // Vanguard traditional IRA account number
     pub roth_acct_option: Option<u32>, // Vanguard roth IRA account number
+    pub output: bool, // Whether or not to output calculations to a txt file
 }
 
 impl Args {
@@ -103,6 +104,13 @@ impl Args {
                     .required_unless_one(&["brokerage-acct", "roth-acct"])
                     .help("Traditional IRA account number"),
             )
+            .arg(
+                Arg::with_name("output")
+                    .long("output")
+                    .short("o")
+                    .takes_value(false)
+                    .help("Output to text file in current directory"),
+            )
             .get_matches();
         let csv_path = args.value_of("Vanguard-Download").unwrap().to_string();
         let percent_stock_brokerage = args
@@ -158,6 +166,7 @@ impl Args {
         if let Some(roth_acct_str) = args.value_of("roth-acct") {
             roth_acct_option = Some(roth_acct_str.parse::<u32>().unwrap())
         }
+        let output = args.is_present("output");
         Args {
             csv_path,
             percent_stock_brokerage,
@@ -170,6 +179,7 @@ impl Args {
             brok_acct_option,
             trad_acct_option,
             roth_acct_option,
+            output,
         }
     }
 }

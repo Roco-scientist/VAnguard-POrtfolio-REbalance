@@ -1,4 +1,6 @@
 use alpaca_finance::{Account, Alpaca};
+use chrono::Local;
+use std::{fs::File, io::Write};
 use vanguard_buy::arguments;
 
 #[tokio::main]
@@ -17,7 +19,13 @@ async fn main() {
     let vanguard_holdings =
         vanguard_buy::holdings::parse_csv_download(&args.csv_path, args.clone())
             .unwrap_or_else(|err| panic!("Holdings error: {}", err));
-    let rebalance = vanguard_buy::calc::to_buy(vanguard_holdings, additional_us_stock, args);
+    let rebalance = vanguard_buy::calc::to_buy(vanguard_holdings, additional_us_stock, args.clone());
     println!("DESCRIPTIONS:\n{}\n", vanguard_buy::holdings::all_stock_descriptions());
-    println!("{}", rebalance)
+    println!("{}", rebalance);
+    if args.output {
+        let datetime = Local::now().format("%Y-%m-%d_%H:%M");
+        let outfile = format!("{}_vanguard_rebalance.txt", datetime);
+        let mut file = File::create(outfile).unwrap();
+        file.write_all(format!("DESCRIPTIONS:\n{}\n\n{}", vanguard_buy::holdings::all_stock_descriptions(), rebalance).as_bytes()).unwrap()
+    }
 }
