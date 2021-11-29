@@ -61,15 +61,15 @@ impl StockSymbols {
 
 #[derive(Clone, PartialEq)]
 pub struct ShareValues {
-    pub vxus: f32,
-    pub bndx: f32,
-    pub vwo: f32,
-    pub vo: f32,
-    pub vb: f32,
-    pub vtc: f32,
-    pub vv: f32,
-    pub vmfxx: f32,
-    pub vtivx: f32,
+    vxus: f32,
+    bndx: f32,
+    vwo: f32,
+    vo: f32,
+    vb: f32,
+    vtc: f32,
+    vv: f32,
+    vmfxx: f32,
+    vtivx: f32,
 }
 
 impl ShareValues {
