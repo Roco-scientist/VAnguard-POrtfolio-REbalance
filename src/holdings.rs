@@ -37,7 +37,6 @@ pub enum StockSymbols {
     VTC,
     VV,
     VMFXX,
-    VTIVX,
     Empty,
     Other(String),
 }
@@ -53,7 +52,6 @@ impl StockSymbols {
             "VTC" => StockSymbols::VTC,
             "VV" => StockSymbols::VV,
             "VMFXX" => StockSymbols::VMFXX,
-            "VTIVX" => StockSymbols::VTIVX,
             _ => StockSymbols::Other(symbol.to_string()),
         }
     }
@@ -69,7 +67,6 @@ pub struct ShareValues {
     vtc: f32,
     vv: f32,
     vmfxx: f32,
-    vtivx: f32,
 }
 
 impl ShareValues {
@@ -83,7 +80,6 @@ impl ShareValues {
             vtc: 0.0,
             vv: 0.0,
             vmfxx: 0.0,
-            vtivx: 0.0,
         }
     }
     pub fn new_quote() -> Self {
@@ -96,7 +92,6 @@ impl ShareValues {
             vtc: 1.0,
             vv: 1.0,
             vmfxx: 1.0,
-            vtivx: 1.0,
         }
     }
     pub fn new_target(
@@ -135,7 +130,6 @@ impl ShareValues {
             vv: (total_value * EACH_US_STOCK * percent_stock / 100.0)
                 - (other_us_stock_value / 3.0),
             vmfxx: 0.0,
-            vtivx: 0.0,
         }
     }
     pub fn add_value(&mut self, stock_info: StockInfo, add_type: AddType) {
@@ -153,7 +147,6 @@ impl ShareValues {
             StockSymbols::VTC => self.vtc = value,
             StockSymbols::VV => self.vv = value,
             StockSymbols::VMFXX => self.vmfxx = value,
-            StockSymbols::VTIVX => self.vtivx = value,
             StockSymbols::Empty => panic!("Stock symbol not set before adding value"),
             StockSymbols::Other(symbol) => eprintln!("Stock ticker not supported: {}", symbol),
         }
@@ -169,7 +162,6 @@ impl ShareValues {
             StockSymbols::VTC => self.vtc = value,
             StockSymbols::VV => self.vv = value,
             StockSymbols::VMFXX => self.vmfxx = value,
-            StockSymbols::VTIVX => self.vtivx = value,
             StockSymbols::Empty => panic!("Stock symbol not set before adding value"),
             StockSymbols::Other(symbol) => eprintln!("Stock ticker not supported: {}", symbol),
         }
@@ -185,7 +177,6 @@ impl ShareValues {
             StockSymbols::VTC => self.vtc,
             StockSymbols::VV => self.vv,
             StockSymbols::VMFXX => self.vmfxx,
-            StockSymbols::VTIVX => self.vtivx,
             StockSymbols::Empty => panic!("Value retrieval not supported for empty stock symbol"),
             StockSymbols::Other(symbol) => panic!("Value retrieval not supported for {}", symbol),
         }
@@ -200,7 +191,6 @@ impl ShareValues {
             + self.vtc
             + self.vv
             + self.vmfxx
-            + self.vtivx
     }
 
     pub fn subtract(&self, other_value: &ShareValues) -> ShareValues {
@@ -213,7 +203,6 @@ impl ShareValues {
             vtc: self.vtc - other_value.vtc,
             vv: self.vv - other_value.vv,
             vmfxx: self.vmfxx - other_value.vmfxx,
-            vtivx: self.vtivx - other_value.vtivx,
         }
     }
 
@@ -227,7 +216,6 @@ impl ShareValues {
             vtc: self.vtc + other_value.vtc,
             vv: self.vv + other_value.vv,
             vmfxx: self.vmfxx + other_value.vmfxx,
-            vtivx: self.vtivx + other_value.vtivx,
         }
     }
 
@@ -241,7 +229,6 @@ impl ShareValues {
             vtc: self.vtc / divisor.vtc,
             vv: self.vv / divisor.vv,
             vmfxx: self.vmfxx / divisor.vmfxx,
-            vtivx: self.vtivx / divisor.vtivx,
         }
     }
 }
@@ -263,7 +250,6 @@ impl fmt::Display for ShareValues {
             VB       {:.2}\n\
             VTC      {:.2}\n\
             VV       {:.2}\n\
-            VTIVX    {:.2}\n\
             Cash     {:.2}\n\
             Total    {:.2}",
             self.vxus,
@@ -273,7 +259,6 @@ impl fmt::Display for ShareValues {
             self.vb,
             self.vtc,
             self.vv,
-            self.vtivx,
             self.vmfxx,
             self.total_value(),
         )
@@ -401,8 +386,7 @@ impl AccountHoldings {
             vb,{},${},${}\n\
             vtc,{},${},${}\n\
             vv,{},${},${}\n\
-            vmfxx,{},${},${}\n\
-            vtivx,{},${},${}\n",
+            vmfxx,{},${},${}",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,
@@ -427,9 +411,6 @@ impl AccountHoldings {
             self.sale_purchases_needed.vmfxx,
             self.current.vmfxx,
             self.target.vmfxx,
-            self.sale_purchases_needed.vtivx,
-            self.current.vtivx,
-            self.target.vtivx
         );
         let mut out_file = File::create(out)?;
         out_file.write_all(out_text.as_bytes())?;
@@ -442,7 +423,7 @@ impl fmt::Display for AccountHoldings {
         write!(
             f,
             "Symbol   Purchase/Sell  Current         Target\n\
-            -----------------------------------------------\n\
+            --------------------------------------------------\n\
             VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
             BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
             VWO      {:<15.2}${:<15.2}${:<15.2}\n\
@@ -450,11 +431,10 @@ impl fmt::Display for AccountHoldings {
             VB       {:<15.2}${:<15.2}${:<15.2}\n\
             VTC      {:<15.2}${:<15.2}${:<15.2}\n\
             VV       {:<15.2}${:<15.2}${:<15.2}\n\
-            VTIVX    {:<15.2}${:<15.2}${:<15.2}\n\
-            -----------------------------------------------\n\
+            --------------------------------------------------\n\
             Cash                    ${:<15.2}${:<15.2}\n\
             Total                   ${:<15.2}\n\
-            ===============================================",
+            ==================================================",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,
@@ -476,9 +456,6 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.vv,
             self.current.vv,
             self.target.vv,
-            self.sale_purchases_needed.vtivx,
-            self.current.vtivx,
-            self.target.vtivx,
             self.current.vmfxx,
             self.target.vmfxx,
             self.current.total_value()
