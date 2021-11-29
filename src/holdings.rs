@@ -24,6 +24,8 @@ const US_CORP_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
 const US_TOT_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
 const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
 
+// STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
+// display
 lazy_static! {
     static ref STOCK_DESCRIPTION: HashMap<StockSymbols, &'static str> = {
         let mut m = HashMap::new();
@@ -39,6 +41,9 @@ lazy_static! {
     };
 }
 
+/// StockSymbols is an enum which holds all stock symbols which are supported.  Empty is used to
+/// initiated structs which use this enum.  Other<String> is a holder of any stock that is not
+/// supported, where the String is the stock symbol.
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
 pub enum StockSymbols {
     VXUS,
@@ -55,6 +60,17 @@ pub enum StockSymbols {
 }
 
 impl StockSymbols {
+
+    /// new creates a new StockSymbols enum based on the string value.
+    ///
+    ///  # Example
+    ///
+    ///  ```
+    ///  use vapore::holdings::StockSymbols;
+    ///
+    ///  let bnd = StockSymbols::new("BND");
+    ///  assert_eq!(bnd, StockSymbols::BND);
+    ///  ```
     pub fn new(symbol: &str) -> Self {
         match symbol {
             "VXUS" => StockSymbols::VXUS,
@@ -69,6 +85,20 @@ impl StockSymbols {
             _ => StockSymbols::Other(symbol.to_string()),
         }
     }
+
+    /// description returns a string of the StockSymbols description.  If the stock is not
+    /// supported, a "No description" String is returned.
+    ///
+    /// # Example
+    ///
+    /// ```
+    ///  use vapore::holdings::StockSymbols;
+    ///
+    ///  let bnd = StockSymbols::new("BND");
+    ///  let bnd_description = bnd.description();
+    ///  assert_eq!(bnd_description, "BND: US total bond")
+    ///
+    /// ```
     pub fn description(&self) -> String {
         let description_option = STOCK_DESCRIPTION.get(self);
         if let Some(description) = description_option {
@@ -79,6 +109,19 @@ impl StockSymbols {
     }
 }
 
+/// all_stock_descriptions returns a String containing the description of all stocks which are
+/// supported with each separated by a new line.  This is used to display on screen or write to
+/// file all of the descriptions.
+///
+/// # Example
+///
+/// ```
+/// use vapore::holdings;
+/// 
+/// let descriptions = holdings::all_stock_descriptions();
+/// println!("{}", descriptions);
+///
+/// ```
 pub fn all_stock_descriptions() -> String {
     let mut descriptions = String::new();
     for symbol in [
@@ -98,11 +141,15 @@ pub fn all_stock_descriptions() -> String {
     descriptions
 }
 
+/// AddType is an enum used to distinguish between when a stock quote or an account holdings is
+/// wanted for input into a ShareValues struct.
 pub enum AddType {
     StockPrice,
     HoldingValue,
 }
 
+/// ShareValues holds the values for the supported ETF stocks.  The value can represent price,
+/// holding value, stock quantity etc.
 #[derive(Clone, PartialEq)]
 pub struct ShareValues {
     vxus: f32,
@@ -117,6 +164,8 @@ pub struct ShareValues {
 }
 
 impl ShareValues {
+    /// new creates a new ShareValues struct where all values are set to 0.  This is used within
+    /// vapore to create a new struct for account holdings, etc.
     pub fn new() -> Self {
         ShareValues {
             vxus: 0.0,
@@ -130,6 +179,11 @@ impl ShareValues {
             vmfxx: 0.0,
         }
     }
+    /// new_quote creates a new ShareValues struct where all values are set to 1.  This is used for
+    /// creating a new struct for stock quotes.  This way if any quotes are missing, they are
+    /// automatically set to 1 to prevent any 0 division errors.  This also has the effect of
+    /// outputting the dollar amount when target value is divided by quote price.  This division 
+    /// occurs to determine number of stocks to purchase/sell.
     pub fn new_quote() -> Self {
         ShareValues {
             vxus: 1.0,
@@ -143,6 +197,16 @@ impl ShareValues {
             vmfxx: 1.0,
         }
     }
+
+    /// new_target creates a new target ShareValues struct which determines what to what values to
+    /// rebalance to vanguard portfolio.
+    ///
+    /// # Panic 
+    ///
+    /// Panics when the percentages and fractions do not add up to 1 when they are added together.
+    /// This is necessary to make sure everything adds up to 100% of the total portfolio.  Adding 
+    /// up to less or more than 100% can happen when the const values determining balance distribution 
+    /// are changed without changing other values to make sure everything adds up.
     pub fn new_target(
         total_vanguard_value: f32,
         percent_bond: f32,
@@ -152,6 +216,7 @@ impl ShareValues {
         other_int_bond_value: f32,
         other_int_stock_value: f32,
     ) -> Self {
+        // Check to make sure all values add up to 1, ie 100%
         let total_percent = INT_TOTAL * percent_stock / 100.0
             + INT_BOND_FRACTION * percent_bond / 100.0
             + INT_EMERGING * percent_stock / 100.0
@@ -160,26 +225,40 @@ impl ShareValues {
             + US_CORP_BOND_FRACTION * percent_bond / 100.0
             + US_CORP_BOND_FRACTION * percent_bond / 100.0
             + EACH_US_STOCK * percent_stock / 100.0;
-        assert!(total_percent >= 0.999 && total_percent <= 1.001, "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
+        assert!((0.999..1.001).contains(&total_percent), "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
+
+        // get total value
         let total_value = total_vanguard_value
             + other_us_stock_value
             + other_us_bond_value
             + other_int_bond_value
             + other_int_stock_value;
+
+        // Calculate values for each stock
+        let vxus_value = (total_value * INT_TOTAL * percent_stock / 100.0)
+                - (other_int_stock_value * 2.0 / 3.0);
+        let bndx_value = (total_value * INT_BOND_FRACTION * percent_bond / 100.0) - other_int_bond_value;
+        let bnd_value =(total_value * US_TOT_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value / 2.0);
+        let vwo_value = (total_value * INT_EMERGING * percent_stock / 100.0)
+                - (other_int_stock_value / 3.0);
+        let vo_value = (total_value * EACH_US_STOCK * percent_stock / 100.0)
+                - (other_us_stock_value / 3.0);
+        let vb_value = (total_value * EACH_US_STOCK * percent_stock / 100.0)
+                - (other_us_stock_value / 3.0);
+        let vtc_value = (total_value * US_CORP_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value / 2.0);
+        let vv_value = (total_value * EACH_US_STOCK * percent_stock / 100.0)
+                - (other_us_stock_value / 3.0);
+
+        // set vmfxx, ie cash, target value to 0 and return ShareValues
         ShareValues {
-            vxus: (total_value * INT_TOTAL * percent_stock / 100.0)
-                - (other_int_stock_value * 2.0 / 3.0),
-            bndx: (total_value * INT_BOND_FRACTION * percent_bond / 100.0) - other_int_bond_value,
-            bnd: (total_value * US_TOT_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value / 2.0),
-            vwo: (total_value * INT_EMERGING * percent_stock / 100.0)
-                - (other_int_stock_value / 3.0),
-            vo: (total_value * EACH_US_STOCK * percent_stock / 100.0)
-                - (other_us_stock_value / 3.0),
-            vb: (total_value * EACH_US_STOCK * percent_stock / 100.0)
-                - (other_us_stock_value / 3.0),
-            vtc: (total_value * US_CORP_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value / 2.0),
-            vv: (total_value * EACH_US_STOCK * percent_stock / 100.0)
-                - (other_us_stock_value / 3.0),
+            vxus: vxus_value,
+            bndx: bndx_value,
+            bnd: bnd_value,
+            vwo: vwo_value,
+            vo: vo_value,
+            vb: vb_value,
+            vtc: vtc_value,
+            vv: vv_value,
             vmfxx: 0.0,
         }
     }
