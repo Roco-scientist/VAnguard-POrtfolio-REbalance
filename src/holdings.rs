@@ -152,7 +152,7 @@ pub enum AddType {
 
 /// ShareValues holds the values for the supported ETF stocks.  The value can represent price,
 /// holding value, stock quantity etc.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ShareValues {
     vxus: f32,
     bndx: f32,
@@ -168,6 +168,13 @@ pub struct ShareValues {
 impl ShareValues {
     /// new creates a new ShareValues struct where all values are set to 0.  This is used within
     /// vapore to create a new struct for account holdings, etc.
+    ///
+    /// # Example
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let new_values = holdings::ShareValues::new();
+    /// ```
     pub fn new() -> Self {
         ShareValues {
             vxus: 0.0,
@@ -186,6 +193,13 @@ impl ShareValues {
     /// automatically set to 1 to prevent any 0 division errors.  This also has the effect of
     /// outputting the dollar amount when target value is divided by quote price.  This division
     /// occurs to determine number of stocks to purchase/sell.
+    ///
+    /// # Example
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let new_quotes = holdings::ShareValues::new_quote();
+    /// ```
     pub fn new_quote() -> Self {
         ShareValues {
             vxus: 1.0,
@@ -209,6 +223,14 @@ impl ShareValues {
     /// This is necessary to make sure everything adds up to 100% of the total portfolio.  Adding
     /// up to less or more than 100% can happen when the const values determining balance distribution
     /// are changed without changing other values to make sure everything adds up.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// ```
     pub fn new_target(
         total_vanguard_value: f32,
         percent_bond: f32,
@@ -267,6 +289,26 @@ impl ShareValues {
             vmfxx: 0.0,
         }
     }
+
+    /// add_value adds stock value to the ShareValues struct with a StockInfo input.  StockInfo
+    /// structs are constructed when parsing the CSV file downloaded from vangaurd.  This is used
+    /// for both creating the stock quotes ShareValues struct and holding values ShareValuues
+    /// struc.  The add_type is used to distinguish between these two groups to know where from
+    /// within the StockInfo struct to pull the dollar amount from.
+    ///
+    /// # Panic
+    ///
+    /// Panics when an empty stock symbol is passed.  This will happen if the StockInfo struct is
+    /// initialized without any content added.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let new_quotes = holdings::ShareValues::new_quote();
+    ///
+    /// ```
     pub fn add_value(&mut self, stock_info: StockInfo, add_type: AddType) {
         let value;
         match add_type {
@@ -630,6 +672,17 @@ pub struct StockInfo {
 }
 
 impl StockInfo {
+
+    /// new initializes a new StockInfo struct.  Account number, symbol, share price etc. can then
+    /// be added with the other methods.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// ```
     pub fn new() -> Self {
         StockInfo {
             account_number: 0,
@@ -642,22 +695,99 @@ impl StockInfo {
             total_value_added: false,
         }
     }
+
+    /// add_account adds the vanguard account number to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    ///
+    /// assert_eq!(new_stock.account_number, 123456789);
+    /// ```
     pub fn add_account(&mut self, account_number: u32) {
         self.account_number = account_number;
         self.account_added = true;
     }
+
+    /// add_symbol adds the stock symbol to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    ///
+    /// assert_eq!(new_stock.symbol, holdings::StockSymbol::BND);
+    /// ```
     pub fn add_symbol(&mut self, symbol: StockSymbol) {
         self.symbol = symbol;
         self.symbol_added = true;
     }
+
+    /// add_share_price adds the stock quote price to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    ///
+    /// assert_eq!(new_stock.share_price, 234.50);
+    /// ```
     pub fn add_share_price(&mut self, share_price: f32) {
         self.share_price = share_price;
         self.share_price_added = true;
     }
+
+    /// add_total_value adds the account total value of the stock to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    /// new_stock.add_total_value(5000.00);
+    ///
+    /// assert_eq!(new_stock.total_value, 5000.00);
+    /// ```
     pub fn add_total_value(&mut self, total_value: f32) {
         self.total_value = total_value;
         self.total_value_added = true;
     }
+
+    /// finished returns a bool of whether or not all struct values have been added.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    /// new_stock.add_total_value(5000.00);
+    ///
+    /// assert!(new_stock.finished());
+    ///
+    /// let empty_stock = holdings::StockInfo::new();
+    /// assert!(!empty_stock.finished())
+    /// ```
     pub fn finished(&self) -> bool {
         [
             self.account_added,
