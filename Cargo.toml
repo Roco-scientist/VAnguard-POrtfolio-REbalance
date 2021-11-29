@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 alpaca-finance = "0.2.1"
+chrono = "0.4.19"
 clap = "2.33"
 custom_error = "1.9"
 lazy_static = "1.4"
