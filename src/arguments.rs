@@ -34,7 +34,6 @@ impl Args {
             )
             .arg(
                 Arg::with_name("percent-bond-brokerage")
-                    .short("b")
                     .long("bond-percent-brokerage")
                     .takes_value(true)
                     .default_value("40")
@@ -42,7 +41,6 @@ impl Args {
             )
             .arg(
                 Arg::with_name("percent-stock-brokerage")
-                    .short("s")
                     .long("stock-percent-brokerage")
                     .takes_value(true)
                     .default_value("60")
@@ -65,6 +63,7 @@ impl Args {
             .arg(
                 Arg::with_name("add-brokerage")
                     .long("add-brokerage")
+                    .short("B")
                     .takes_value(true)
                     .default_value("0")
                     .help("Amount of cash added to the brokerage account"),
@@ -72,6 +71,7 @@ impl Args {
             .arg(
                 Arg::with_name("add-traditional")
                     .long("add-traditional")
+                    .short("T")
                     .takes_value(true)
                     .default_value("0")
                     .help("Amount of cash added to the traditional IRA account"),
@@ -79,6 +79,7 @@ impl Args {
             .arg(
                 Arg::with_name("add-roth")
                     .long("add-roth")
+                    .short("R")
                     .takes_value(true)
                     .default_value("0")
                     .help("Amount of cash added to the roth IRA account"),
@@ -86,6 +87,7 @@ impl Args {
             .arg(
                 Arg::with_name("acct-num-b")
                     .long("brokerage-acct")
+                    .short("b")
                     .takes_value(true)
                     .required_unless_one(&["acct-num-r", "acct-num-t"])
                     .help("Brokerage account number"),
@@ -93,6 +95,7 @@ impl Args {
             .arg(
                 Arg::with_name("acct-num-r")
                     .long("roth-acct")
+                    .short("r")
                     .takes_value(true)
                     .required_unless_one(&["acct-num-b", "acct-num-t"])
                     .help("Roth IRA account number"),
@@ -100,6 +103,7 @@ impl Args {
             .arg(
                 Arg::with_name("acct-num-t")
                     .long("trad-acct")
+                    .short("t")
                     .takes_value(true)
                     .required_unless_one(&["acct-num-b", "acct-num-r"])
                     .help("Traditional IRA account number"),
