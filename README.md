@@ -1,4 +1,4 @@
-# Vanguard-Buy
+# VAnguard-POrtoflio-REbalance VAPORE
 Algorithm setup to determine proper spread of Vanguard ETF index funds and adjust with the downloaded vanguards transaction file.  Current allocation:  
   
 |Symbol|Description              |Type |% of type|
