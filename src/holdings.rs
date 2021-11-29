@@ -98,7 +98,7 @@ impl StockSymbol {
     ///
     ///  let bnd = StockSymbol::new("BND");
     ///  let bnd_description = bnd.description();
-    ///  assert_eq!(bnd_description, "BND: US total bond")
+    ///  assert_eq!(bnd_description, "BND: US total bond");
     ///
     /// ```
     pub fn description(&self) -> String {
@@ -306,7 +306,16 @@ impl ShareValues {
     /// ```
     /// use vapore::holdings;
     ///
-    /// let new_quotes = holdings::ShareValues::new_quote();
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    /// new_stock.add_total_value(5000.00);
+    ///
+    /// let mut new_quotes = holdings::ShareValues::new_quote();
+    /// new_quotes.add_value(new_stock, holdings::AddType::StockPrice);
+    ///
+    /// assert_eq!(new_quotes.stock_value(holdings::StockSymbol::BND), 234.50);
     ///
     /// ```
     pub fn add_value(&mut self, stock_info: StockInfo, add_type: AddType) {
@@ -330,6 +339,24 @@ impl ShareValues {
         }
     }
 
+    /// add_stock_value adds stock value to the ShareValues struct with a float.  
+    /// 
+    /// # Panic
+    ///
+    /// Panics when an empty stock symbol is passed.  This will happen if the StockInfo struct is
+    /// initialized without any content added.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_values = holdings::ShareValues::new();
+    /// new_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
+    ///
+    /// assert_eq!(new_values.stock_value(holdings::StockSymbol::BND), 5000.0);
+    ///
+    /// ```
     pub fn add_stock_value(&mut self, stock_symbol: StockSymbol, value: f32) {
         match stock_symbol {
             StockSymbol::VXUS => self.vxus = value,
@@ -346,6 +373,24 @@ impl ShareValues {
         }
     }
 
+    /// stock_value retrieves the stored stock value within the ShareValues struct
+    /// 
+    /// # Panic
+    ///
+    /// Panics when an empty stock symbol is passed.  This will happen if the StockInfo struct is
+    /// initialized without any content added.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_values = holdings::ShareValues::new();
+    /// new_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
+    ///
+    /// assert_eq!(new_values.stock_value(holdings::StockSymbol::BND), 5000.0);
+    ///
+    /// ```
     pub fn stock_value(&self, stock_symbol: StockSymbol) -> f32 {
         match stock_symbol {
             StockSymbol::VXUS => self.vxus,
@@ -362,6 +407,21 @@ impl ShareValues {
         }
     }
 
+    /// total_value returns the sum of all of the values within the StockValue struct
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_values = holdings::ShareValues::new();
+    /// new_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
+    /// new_values.add_stock_value(holdings::StockSymbol::BNDX, 2000.0);
+    /// new_values.add_stock_value(holdings::StockSymbol::VB, 4000.0);
+    ///
+    /// assert_eq!(new_values.total_value(), 11000.0);
+    ///
+    /// ```
     pub fn total_value(&self) -> f32 {
         self.vxus
             + self.bndx
@@ -374,6 +434,27 @@ impl ShareValues {
             + self.vmfxx
     }
 
+    /// subtract subtracts a ShareValues struct from the current struct and returns the values
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut first_values = holdings::ShareValues::new();
+    /// first_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
+    /// first_values.add_stock_value(holdings::StockSymbol::BNDX, 2000.0);
+    ///
+    /// let mut second_values = holdings::ShareValues::new();
+    /// second_values.add_stock_value(holdings::StockSymbol::BND, 3000.0);
+    /// second_values.add_stock_value(holdings::StockSymbol::BNDX, 1000.0);
+    ///
+    /// let difference = first_values.subtract(&second_values);
+    ///
+    /// assert_eq!(difference.stock_value(holdings::StockSymbol::BND), 2000.0);
+    /// assert_eq!(difference.stock_value(holdings::StockSymbol::BNDX), 1000.0);
+    ///
+    /// ```
     pub fn subtract(&self, other_value: &ShareValues) -> ShareValues {
         ShareValues {
             vxus: self.vxus - other_value.vxus,
@@ -388,6 +469,27 @@ impl ShareValues {
         }
     }
 
+    /// add adds a ShareValues struct from the current struct and returns the values
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut first_values = holdings::ShareValues::new();
+    /// first_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
+    /// first_values.add_stock_value(holdings::StockSymbol::BNDX, 2000.0);
+    ///
+    /// let mut second_values = holdings::ShareValues::new();
+    /// second_values.add_stock_value(holdings::StockSymbol::BND, 3000.0);
+    /// second_values.add_stock_value(holdings::StockSymbol::BNDX, 1000.0);
+    ///
+    /// let sum = first_values.add(&second_values);
+    ///
+    /// assert_eq!(sum.stock_value(holdings::StockSymbol::BND), 8000.0);
+    /// assert_eq!(sum.stock_value(holdings::StockSymbol::BNDX), 3000.0);
+    ///
+    /// ```
     pub fn add(&self, other_value: &ShareValues) -> ShareValues {
         ShareValues {
             vxus: self.vxus + other_value.vxus,
@@ -402,6 +504,29 @@ impl ShareValues {
         }
     }
 
+    /// divide divides the current ShareValues struct by a ShareValues struct and returns the values.  
+    /// This can be used to divide the current values by another struct which contatins the quote
+    /// values in order to return the number of stocks needed to purchase/sell.
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut first_values = holdings::ShareValues::new();
+    /// first_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
+    /// first_values.add_stock_value(holdings::StockSymbol::BNDX, 2000.0);
+    ///
+    /// let mut second_values = holdings::ShareValues::new();
+    /// second_values.add_stock_value(holdings::StockSymbol::BND, 2500.0);
+    /// second_values.add_stock_value(holdings::StockSymbol::BNDX, 500.0);
+    ///
+    /// let divided = first_values.divide(&second_values);
+    ///
+    /// assert_eq!(divided.stock_value(holdings::StockSymbol::BND), 2.0);
+    /// assert_eq!(divided.stock_value(holdings::StockSymbol::BNDX), 4.0);
+    ///
+    /// ```
     pub fn divide(&self, divisor: &ShareValues) -> ShareValues {
         ShareValues {
             vxus: self.vxus / divisor.vxus,
