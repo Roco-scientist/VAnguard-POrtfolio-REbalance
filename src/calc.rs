@@ -24,20 +24,26 @@ pub fn to_buy(
         args.percent_bond_retirement,
     );
     if let Some(traditional_account) = traditional_ira_account_option {
-        rebalance.add_account_holdings(traditional_account, crate::holdings::HoldingType::TraditionalIra)
+        rebalance.add_account_holdings(
+            traditional_account,
+            crate::holdings::HoldingType::TraditionalIra,
+        )
     }
     if let Some(roth_account) = roth_ira_account_option {
         rebalance.add_account_holdings(roth_account, crate::holdings::HoldingType::RothIra)
     }
     if let Some(brokerage_holdings) = vanguard_holdings.brockerage_holdings() {
-        rebalance.add_account_holdings(brokerage_calc(
-            vanguard_holdings.stock_quotes(),
-            brokerage_holdings,
-            alpaca_holdings,
-            args.brokerage_add,
-            args.percent_stock_brokerage,
-            args.percent_bond_brokerage,
-        ), crate::holdings::HoldingType::Brokerage)
+        rebalance.add_account_holdings(
+            brokerage_calc(
+                vanguard_holdings.stock_quotes(),
+                brokerage_holdings,
+                alpaca_holdings,
+                args.brokerage_add,
+                args.percent_stock_brokerage,
+                args.percent_bond_brokerage,
+            ),
+            crate::holdings::HoldingType::Brokerage,
+        )
     }
     rebalance
 }
@@ -160,11 +166,8 @@ fn retirement_calc(
             );
             let roth_difference = roth_target.subtract(&roth_holdings);
             let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());
-            let roth_account = crate::holdings::AccountHoldings::new(
-                roth_holdings,
-                roth_target,
-                roth_purchase,
-            );
+            let roth_account =
+                crate::holdings::AccountHoldings::new(roth_holdings, roth_target, roth_purchase);
             roth_ira_account_option = Some(roth_account);
         }
     } else if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {

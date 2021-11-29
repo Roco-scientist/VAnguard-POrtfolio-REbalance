@@ -22,12 +22,21 @@ const INT_TOTAL: f32 = INT_STOCK_FRACTION * 2.0 / 3.0;
 const US_BOND_FRACTION: f32 = 2.0 / 3.0;
 const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
 
-pub enum AddType {
-    StockPrice,
-    HoldingValue,
+lazy_static! {
+    static ref STOCK_DESCRIPTION: HashMap<StockSymbols, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert(StockSymbols::VV, "US large cap");
+        m.insert(StockSymbols::VO, "US mid cap");
+        m.insert(StockSymbols::VB, "US small cap");
+        m.insert(StockSymbols::VTC, "US total corporate bond");
+        m.insert(StockSymbols::VXUS, "Total international stock");
+        m.insert(StockSymbols::VWO, "Emerging markets stock");
+        m.insert(StockSymbols::BNDX, "Total international bond");
+        m
+    };
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, Hash, PartialEq, Debug)]
 pub enum StockSymbols {
     VXUS,
     BNDX,
@@ -55,6 +64,37 @@ impl StockSymbols {
             _ => StockSymbols::Other(symbol.to_string()),
         }
     }
+    pub fn description(&self) -> String {
+        let description_option = STOCK_DESCRIPTION.get(self);
+        if let Some(description) = description_option {
+            return format!("{:?}: {}", self, description)
+        } else {
+            return format!("No description for {:?}", self)
+        }
+    }
+}
+
+pub fn all_stock_descriptions() -> String {
+    let mut descriptions = String::new();
+    for symbol in [
+        StockSymbols::VV,
+        StockSymbols::VO,
+        StockSymbols::VB,
+        StockSymbols::VTC,
+        StockSymbols::VXUS,
+        StockSymbols::VWO,
+        StockSymbols::BNDX,
+    ] {
+        descriptions.push_str(&symbol.description());
+        descriptions.push('\n')
+    }
+    descriptions.pop();
+    descriptions
+}
+
+pub enum AddType {
+    StockPrice,
+    HoldingValue,
 }
 
 #[derive(Clone, PartialEq)]
@@ -183,14 +223,7 @@ impl ShareValues {
     }
 
     pub fn total_value(&self) -> f32 {
-        self.vxus
-            + self.bndx
-            + self.vwo
-            + self.vo
-            + self.vb
-            + self.vtc
-            + self.vv
-            + self.vmfxx
+        self.vxus + self.bndx + self.vwo + self.vo + self.vb + self.vtc + self.vv + self.vmfxx
     }
 
     pub fn subtract(&self, other_value: &ShareValues) -> ShareValues {
