@@ -1,6 +1,6 @@
 [package]
 name = "vanguard-buy"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,4 +9,5 @@ edition = "2021"
 alpaca-finance = "0.2.1"
 clap = "2.33"
 custom_error = "1.9"
+lazy_static = "1.4"
 tokio = "0.2.25"

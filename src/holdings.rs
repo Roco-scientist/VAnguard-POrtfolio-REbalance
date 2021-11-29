@@ -22,11 +22,21 @@ const INT_TOTAL: f32 = INT_STOCK_FRACTION * 2.0 / 3.0;
 const US_BOND_FRACTION: f32 = 2.0 / 3.0;
 const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
 
-pub enum AddType {
-    StockPrice,
-    HoldingValue,
+lazy_static! {
+    static ref STOCK_DESCRIPTION: HashMap<StockSymbols, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert(StockSymbols::VV, "US large cap");
+        m.insert(StockSymbols::VO, "US mid cap");
+        m.insert(StockSymbols::VB, "US small cap");
+        m.insert(StockSymbols::VTC, "US total corporate bond");
+        m.insert(StockSymbols::VXUS, "Total international stock");
+        m.insert(StockSymbols::VWO, "Emerging markets stock");
+        m.insert(StockSymbols::BNDX, "Total international bond");
+        m
+    };
 }
 
+#[derive(Clone, Eq, Hash, PartialEq, Debug)]
 pub enum StockSymbols {
     VXUS,
     BNDX,
@@ -36,20 +46,67 @@ pub enum StockSymbols {
     VTC,
     VV,
     VMFXX,
-    VTIVX,
+    Empty,
+    Other(String),
+}
+
+impl StockSymbols {
+    pub fn new(symbol: &str) -> Self {
+        match symbol {
+            "VXUS" => StockSymbols::VXUS,
+            "BNDX" => StockSymbols::BNDX,
+            "VWO" => StockSymbols::VWO,
+            "VO" => StockSymbols::VO,
+            "VB" => StockSymbols::VB,
+            "VTC" => StockSymbols::VTC,
+            "VV" => StockSymbols::VV,
+            "VMFXX" => StockSymbols::VMFXX,
+            _ => StockSymbols::Other(symbol.to_string()),
+        }
+    }
+    pub fn description(&self) -> String {
+        let description_option = STOCK_DESCRIPTION.get(self);
+        if let Some(description) = description_option {
+            return format!("{:?}: {}", self, description)
+        } else {
+            return format!("No description for {:?}", self)
+        }
+    }
+}
+
+pub fn all_stock_descriptions() -> String {
+    let mut descriptions = String::new();
+    for symbol in [
+        StockSymbols::VV,
+        StockSymbols::VO,
+        StockSymbols::VB,
+        StockSymbols::VTC,
+        StockSymbols::VXUS,
+        StockSymbols::VWO,
+        StockSymbols::BNDX,
+    ] {
+        descriptions.push_str(&symbol.description());
+        descriptions.push('\n')
+    }
+    descriptions.pop();
+    descriptions
+}
+
+pub enum AddType {
+    StockPrice,
+    HoldingValue,
 }
 
 #[derive(Clone, PartialEq)]
 pub struct ShareValues {
-    pub vxus: f32,
-    pub bndx: f32,
-    pub vwo: f32,
-    pub vo: f32,
-    pub vb: f32,
-    pub vtc: f32,
-    pub vv: f32,
-    pub vmfxx: f32,
-    pub vtivx: f32,
+    vxus: f32,
+    bndx: f32,
+    vwo: f32,
+    vo: f32,
+    vb: f32,
+    vtc: f32,
+    vv: f32,
+    vmfxx: f32,
 }
 
 impl ShareValues {
@@ -63,7 +120,18 @@ impl ShareValues {
             vtc: 0.0,
             vv: 0.0,
             vmfxx: 0.0,
-            vtivx: 0.0,
+        }
+    }
+    pub fn new_quote() -> Self {
+        ShareValues {
+            vxus: 1.0,
+            bndx: 1.0,
+            vwo: 1.0,
+            vo: 1.0,
+            vb: 1.0,
+            vtc: 1.0,
+            vv: 1.0,
+            vmfxx: 1.0,
         }
     }
     pub fn new_target(
@@ -102,7 +170,6 @@ impl ShareValues {
             vv: (total_value * EACH_US_STOCK * percent_stock / 100.0)
                 - (other_us_stock_value / 3.0),
             vmfxx: 0.0,
-            vtivx: 0.0,
         }
     }
     pub fn add_value(&mut self, stock_info: StockInfo, add_type: AddType) {
@@ -111,45 +178,52 @@ impl ShareValues {
             AddType::StockPrice => value = stock_info.share_price,
             AddType::HoldingValue => value = stock_info.total_value,
         }
-        match stock_info.symbol.as_str() {
-            "VXUS" => self.vxus = value,
-            "BNDX" => self.bndx = value,
-            "VWO" => self.vwo = value,
-            "VO" => self.vo = value,
-            "VB" => self.vb = value,
-            "VTC" => self.vtc = value,
-            "VV" => self.vv = value,
-            "VMFXX" => self.vmfxx = value,
-            "VTIVX" => self.vtivx = value,
-            _ => eprintln!("Stock ticker not supported: {}", stock_info.symbol),
+        match stock_info.symbol {
+            StockSymbols::VXUS => self.vxus = value,
+            StockSymbols::BNDX => self.bndx = value,
+            StockSymbols::VWO => self.vwo = value,
+            StockSymbols::VO => self.vo = value,
+            StockSymbols::VB => self.vb = value,
+            StockSymbols::VTC => self.vtc = value,
+            StockSymbols::VV => self.vv = value,
+            StockSymbols::VMFXX => self.vmfxx = value,
+            StockSymbols::Empty => panic!("Stock symbol not set before adding value"),
+            StockSymbols::Other(symbol) => eprintln!("Stock ticker not supported: {}", symbol),
         }
     }
 
-    pub fn add_stock_value(&mut self, stock_symbol: &str, value: f32) {
+    pub fn add_stock_value(&mut self, stock_symbol: StockSymbols, value: f32) {
         match stock_symbol {
-            "VXUS" => self.vxus = value,
-            "BNDX" => self.bndx = value,
-            "VWO" => self.vwo = value,
-            "VO" => self.vo = value,
-            "VB" => self.vb = value,
-            "VTC" => self.vtc = value,
-            "VV" => self.vv = value,
-            "VMFXX" => self.vmfxx = value,
-            "VTIVX" => self.vtivx = value,
-            _ => eprintln!("Stock ticker not supported: {}", stock_symbol),
+            StockSymbols::VXUS => self.vxus = value,
+            StockSymbols::BNDX => self.bndx = value,
+            StockSymbols::VWO => self.vwo = value,
+            StockSymbols::VO => self.vo = value,
+            StockSymbols::VB => self.vb = value,
+            StockSymbols::VTC => self.vtc = value,
+            StockSymbols::VV => self.vv = value,
+            StockSymbols::VMFXX => self.vmfxx = value,
+            StockSymbols::Empty => panic!("Stock symbol not set before adding value"),
+            StockSymbols::Other(symbol) => eprintln!("Stock ticker not supported: {}", symbol),
+        }
+    }
+
+    pub fn stock_value(&self, stock_symbol: StockSymbols) -> f32 {
+        match stock_symbol {
+            StockSymbols::VXUS => self.vxus,
+            StockSymbols::BNDX => self.bndx,
+            StockSymbols::VWO => self.vwo,
+            StockSymbols::VO => self.vo,
+            StockSymbols::VB => self.vb,
+            StockSymbols::VTC => self.vtc,
+            StockSymbols::VV => self.vv,
+            StockSymbols::VMFXX => self.vmfxx,
+            StockSymbols::Empty => panic!("Value retrieval not supported for empty stock symbol"),
+            StockSymbols::Other(symbol) => panic!("Value retrieval not supported for {}", symbol),
         }
     }
 
     pub fn total_value(&self) -> f32 {
-        self.vxus
-            + self.bndx
-            + self.vwo
-            + self.vo
-            + self.vb
-            + self.vtc
-            + self.vv
-            + self.vmfxx
-            + self.vtivx
+        self.vxus + self.bndx + self.vwo + self.vo + self.vb + self.vtc + self.vv + self.vmfxx
     }
 
     pub fn subtract(&self, other_value: &ShareValues) -> ShareValues {
@@ -162,7 +236,6 @@ impl ShareValues {
             vtc: self.vtc - other_value.vtc,
             vv: self.vv - other_value.vv,
             vmfxx: self.vmfxx - other_value.vmfxx,
-            vtivx: self.vtivx - other_value.vtivx,
         }
     }
 
@@ -176,7 +249,6 @@ impl ShareValues {
             vtc: self.vtc + other_value.vtc,
             vv: self.vv + other_value.vv,
             vmfxx: self.vmfxx + other_value.vmfxx,
-            vtivx: self.vtivx + other_value.vtivx,
         }
     }
 
@@ -190,7 +262,6 @@ impl ShareValues {
             vtc: self.vtc / divisor.vtc,
             vv: self.vv / divisor.vv,
             vmfxx: self.vmfxx / divisor.vmfxx,
-            vtivx: self.vtivx / divisor.vtivx,
         }
     }
 }
@@ -212,8 +283,8 @@ impl fmt::Display for ShareValues {
             VB       {:.2}\n\
             VTC      {:.2}\n\
             VV       {:.2}\n\
-            VMFXX    {:.2}\n\
-            VTIVX    {:.2}",
+            Cash     {:.2}\n\
+            Total    {:.2}",
             self.vxus,
             self.bndx,
             self.vwo,
@@ -222,7 +293,7 @@ impl fmt::Display for ShareValues {
             self.vtc,
             self.vv,
             self.vmfxx,
-            self.vtivx
+            self.total_value(),
         )
     }
 }
@@ -271,6 +342,54 @@ impl VanguardHoldings {
     }
 }
 
+pub struct VanguardRebalance {
+    brokerage: Option<AccountHoldings>,
+    traditional_ira: Option<AccountHoldings>,
+    roth_ira: Option<AccountHoldings>,
+}
+
+impl VanguardRebalance {
+    pub fn new() -> Self {
+        VanguardRebalance {
+            brokerage: None,
+            traditional_ira: None,
+            roth_ira: None,
+        }
+    }
+    pub fn add_account_holdings(&mut self, acct_holding: AccountHoldings, acct_type: HoldingType) {
+        match acct_type {
+            HoldingType::Brokerage => self.brokerage = Some(acct_holding),
+            HoldingType::TraditionalIra => self.traditional_ira = Some(acct_holding),
+            HoldingType::RothIra => self.roth_ira = Some(acct_holding),
+        }
+    }
+}
+
+impl Default for VanguardRebalance {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Display for VanguardRebalance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut out_string = String::new();
+        if let Some(traditional_ira_account) = &self.traditional_ira {
+            out_string.push_str(&format!(
+                "Traditional IRA:\n{}\n\n",
+                traditional_ira_account
+            ))
+        }
+        if let Some(roth_ira_account) = &self.roth_ira {
+            out_string.push_str(&format!("Roth IRA:\n{}\n\n", roth_ira_account))
+        }
+        if let Some(brokerage_account) = &self.brokerage {
+            out_string.push_str(&format!("Brokerage:\n{}\n\n", brokerage_account))
+        }
+        write!(f, "{}", out_string.trim_end_matches('\n'))
+    }
+}
+
 pub struct AccountHoldings {
     current: ShareValues,
     target: ShareValues,
@@ -300,8 +419,7 @@ impl AccountHoldings {
             vb,{},${},${}\n\
             vtc,{},${},${}\n\
             vv,{},${},${}\n\
-            vmfxx,{},${},${}\n\
-            vtivx,{},${},${}\n",
+            vmfxx,{},${},${}",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,
@@ -326,9 +444,6 @@ impl AccountHoldings {
             self.sale_purchases_needed.vmfxx,
             self.current.vmfxx,
             self.target.vmfxx,
-            self.sale_purchases_needed.vtivx,
-            self.current.vtivx,
-            self.target.vtivx
         );
         let mut out_file = File::create(out)?;
         out_file.write_all(out_text.as_bytes())?;
@@ -340,7 +455,8 @@ impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "symbol   purchase/sales current         target\n\
+            "Symbol   Purchase/Sell  Current         Target\n\
+            --------------------------------------------------\n\
             VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
             BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
             VWO      {:<15.2}${:<15.2}${:<15.2}\n\
@@ -348,8 +464,10 @@ impl fmt::Display for AccountHoldings {
             VB       {:<15.2}${:<15.2}${:<15.2}\n\
             VTC      {:<15.2}${:<15.2}${:<15.2}\n\
             VV       {:<15.2}${:<15.2}${:<15.2}\n\
-            VMFXX    {:<15.2}${:<15.2}${:<15.2}\n\
-            VTIVX    {:<15.2}${:<15.2}${:<15.2}\n",
+            --------------------------------------------------\n\
+            Cash                    ${:<15.2}${:<15.2}\n\
+            Total                   ${:<15.2}\n\
+            ==================================================",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,
@@ -371,12 +489,9 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.vv,
             self.current.vv,
             self.target.vv,
-            self.sale_purchases_needed.vmfxx,
             self.current.vmfxx,
             self.target.vmfxx,
-            self.sale_purchases_needed.vtivx,
-            self.current.vtivx,
-            self.target.vtivx
+            self.current.total_value()
         )
     }
 }
@@ -384,7 +499,7 @@ impl fmt::Display for AccountHoldings {
 #[derive(Clone)]
 pub struct StockInfo {
     pub account_number: u32,
-    pub symbol: String,
+    pub symbol: StockSymbols,
     pub share_price: f32,
     pub total_value: f32,
     account_added: bool,
@@ -397,7 +512,7 @@ impl StockInfo {
     pub fn new() -> Self {
         StockInfo {
             account_number: 0,
-            symbol: String::new(),
+            symbol: StockSymbols::Empty,
             share_price: 0.0,
             total_value: 0.0,
             account_added: false,
@@ -410,7 +525,7 @@ impl StockInfo {
         self.account_number = account_number;
         self.account_added = true;
     }
-    pub fn add_symbol(&mut self, symbol: String) {
+    pub fn add_symbol(&mut self, symbol: StockSymbols) {
         self.symbol = symbol;
         self.symbol_added = true;
     }
@@ -453,7 +568,7 @@ pub fn parse_csv_download(
     let mut header = Vec::new();
     let csv_file = File::open(csv_path)?;
     let mut accounts: HashMap<u32, ShareValues> = HashMap::new();
-    let mut quotes = ShareValues::new();
+    let mut quotes = ShareValues::new_quote();
     for row_result in BufReader::new(csv_file).lines() {
         let row = row_result?;
         if row.contains(',') {
@@ -471,7 +586,7 @@ pub fn parse_csv_download(
                 for (value, head) in row_split.iter().zip(&header) {
                     match head.as_str() {
                         "Account Number" => stock_info.add_account(value.parse::<u32>()?),
-                        "Symbol" => stock_info.add_symbol(value.to_string()),
+                        "Symbol" => stock_info.add_symbol(StockSymbols::new(value)),
                         "Share Price" => stock_info.add_share_price(value.parse::<f32>()?),
                         "Total Value" => stock_info.add_total_value(value.parse::<f32>()?),
                         _ => continue,

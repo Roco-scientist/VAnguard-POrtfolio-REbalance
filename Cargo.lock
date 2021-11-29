@@ -1388,6 +1388,7 @@ dependencies = [
  "alpaca-finance",
  "clap",
  "custom_error",
+ "lazy_static",
  "tokio",
 ]
 
