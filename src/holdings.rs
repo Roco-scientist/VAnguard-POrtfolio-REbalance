@@ -20,6 +20,8 @@ const INT_EMERGING: f32 = INT_STOCK_FRACTION / 3.0;
 const INT_TOTAL: f32 = INT_STOCK_FRACTION * 2.0 / 3.0;
 // 2/3 of total bonds in US corporate bonds, 1/3 in internation bonds
 const US_BOND_FRACTION: f32 = 2.0 / 3.0;
+const US_CORP_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
+const US_TOT_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
 const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
 
 lazy_static! {
@@ -29,6 +31,7 @@ lazy_static! {
         m.insert(StockSymbols::VO, "US mid cap");
         m.insert(StockSymbols::VB, "US small cap");
         m.insert(StockSymbols::VTC, "US total corporate bond");
+        m.insert(StockSymbols::BND, "US total bond");
         m.insert(StockSymbols::VXUS, "Total international stock");
         m.insert(StockSymbols::VWO, "Emerging markets stock");
         m.insert(StockSymbols::BNDX, "Total international bond");
@@ -40,6 +43,7 @@ lazy_static! {
 pub enum StockSymbols {
     VXUS,
     BNDX,
+    BND,
     VWO,
     VO,
     VB,
@@ -55,6 +59,7 @@ impl StockSymbols {
         match symbol {
             "VXUS" => StockSymbols::VXUS,
             "BNDX" => StockSymbols::BNDX,
+            "BND" => StockSymbols::BND,
             "VWO" => StockSymbols::VWO,
             "VO" => StockSymbols::VO,
             "VB" => StockSymbols::VB,
@@ -81,6 +86,7 @@ pub fn all_stock_descriptions() -> String {
         StockSymbols::VO,
         StockSymbols::VB,
         StockSymbols::VTC,
+        StockSymbols::BND,
         StockSymbols::VXUS,
         StockSymbols::VWO,
         StockSymbols::BNDX,
@@ -101,6 +107,7 @@ pub enum AddType {
 pub struct ShareValues {
     vxus: f32,
     bndx: f32,
+    bnd: f32,
     vwo: f32,
     vo: f32,
     vb: f32,
@@ -114,6 +121,7 @@ impl ShareValues {
         ShareValues {
             vxus: 0.0,
             bndx: 0.0,
+            bnd: 0.0,
             vwo: 0.0,
             vo: 0.0,
             vb: 0.0,
@@ -126,6 +134,7 @@ impl ShareValues {
         ShareValues {
             vxus: 1.0,
             bndx: 1.0,
+            bnd: 1.0,
             vwo: 1.0,
             vo: 1.0,
             vb: 1.0,
@@ -148,9 +157,10 @@ impl ShareValues {
             + INT_EMERGING * percent_stock / 100.0
             + EACH_US_STOCK * percent_stock / 100.0
             + EACH_US_STOCK * percent_stock / 100.0
-            + US_BOND_FRACTION * percent_bond / 100.0
+            + US_CORP_BOND_FRACTION * percent_bond / 100.0
+            + US_CORP_BOND_FRACTION * percent_bond / 100.0
             + EACH_US_STOCK * percent_stock / 100.0;
-        assert_eq!(total_percent, 1.0, "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
+        assert!(total_percent >= 0.999 && total_percent <= 1.001, "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
         let total_value = total_vanguard_value
             + other_us_stock_value
             + other_us_bond_value
@@ -160,13 +170,14 @@ impl ShareValues {
             vxus: (total_value * INT_TOTAL * percent_stock / 100.0)
                 - (other_int_stock_value * 2.0 / 3.0),
             bndx: (total_value * INT_BOND_FRACTION * percent_bond / 100.0) - other_int_bond_value,
+            bnd: (total_value * US_TOT_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value / 2.0),
             vwo: (total_value * INT_EMERGING * percent_stock / 100.0)
                 - (other_int_stock_value / 3.0),
             vo: (total_value * EACH_US_STOCK * percent_stock / 100.0)
                 - (other_us_stock_value / 3.0),
             vb: (total_value * EACH_US_STOCK * percent_stock / 100.0)
                 - (other_us_stock_value / 3.0),
-            vtc: (total_value * US_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value),
+            vtc: (total_value * US_CORP_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value / 2.0),
             vv: (total_value * EACH_US_STOCK * percent_stock / 100.0)
                 - (other_us_stock_value / 3.0),
             vmfxx: 0.0,
@@ -181,6 +192,7 @@ impl ShareValues {
         match stock_info.symbol {
             StockSymbols::VXUS => self.vxus = value,
             StockSymbols::BNDX => self.bndx = value,
+            StockSymbols::BND => self.bnd = value,
             StockSymbols::VWO => self.vwo = value,
             StockSymbols::VO => self.vo = value,
             StockSymbols::VB => self.vb = value,
@@ -196,6 +208,7 @@ impl ShareValues {
         match stock_symbol {
             StockSymbols::VXUS => self.vxus = value,
             StockSymbols::BNDX => self.bndx = value,
+            StockSymbols::BND => self.bnd = value,
             StockSymbols::VWO => self.vwo = value,
             StockSymbols::VO => self.vo = value,
             StockSymbols::VB => self.vb = value,
@@ -211,6 +224,7 @@ impl ShareValues {
         match stock_symbol {
             StockSymbols::VXUS => self.vxus,
             StockSymbols::BNDX => self.bndx,
+            StockSymbols::BND => self.bnd,
             StockSymbols::VWO => self.vwo,
             StockSymbols::VO => self.vo,
             StockSymbols::VB => self.vb,
@@ -223,13 +237,14 @@ impl ShareValues {
     }
 
     pub fn total_value(&self) -> f32 {
-        self.vxus + self.bndx + self.vwo + self.vo + self.vb + self.vtc + self.vv + self.vmfxx
+        self.vxus + self.bndx + self.bnd + self.vwo + self.vo + self.vb + self.vtc + self.vv + self.vmfxx
     }
 
     pub fn subtract(&self, other_value: &ShareValues) -> ShareValues {
         ShareValues {
             vxus: self.vxus - other_value.vxus,
             bndx: self.bndx - other_value.bndx,
+            bnd: self.bnd - other_value.bnd,
             vwo: self.vwo - other_value.vwo,
             vo: self.vo - other_value.vo,
             vb: self.vb - other_value.vb,
@@ -243,6 +258,7 @@ impl ShareValues {
         ShareValues {
             vxus: self.vxus + other_value.vxus,
             bndx: self.bndx + other_value.bndx,
+            bnd: self.bnd + other_value.bnd,
             vwo: self.vwo + other_value.vwo,
             vo: self.vo + other_value.vo,
             vb: self.vb + other_value.vb,
@@ -256,6 +272,7 @@ impl ShareValues {
         ShareValues {
             vxus: self.vxus / divisor.vxus,
             bndx: self.bndx / divisor.bndx,
+            bnd: self.bnd / divisor.bnd,
             vwo: self.vwo / divisor.vwo,
             vo: self.vo / divisor.vo,
             vb: self.vb / divisor.vb,
@@ -276,22 +293,26 @@ impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "VXUS     {:.2}\n\
-            BNDX     {:.2}\n\
-            VWO      {:.2}\n\
+            "\
+            VV       {:.2}\n\
             VO       {:.2}\n\
             VB       {:.2}\n\
             VTC      {:.2}\n\
-            VV       {:.2}\n\
+            BND      {:.2}\n\
+            VXUS     {:.2}\n\
+            VWO      {:.2}\n\
+            BNDX     {:.2}\n\
             Cash     {:.2}\n\
-            Total    {:.2}",
-            self.vxus,
-            self.bndx,
-            self.vwo,
+            Total    {:.2}\
+            ",
+            self.vv,
             self.vo,
             self.vb,
             self.vtc,
-            self.vv,
+            self.bnd,
+            self.vxus,
+            self.vwo,
+            self.bndx,
             self.vmfxx,
             self.total_value(),
         )
@@ -412,23 +433,18 @@ impl AccountHoldings {
     pub fn to_csv(&self, out: String) -> Result<(), Box<dyn Error>> {
         let out_text = format!(
             "symbol,purchase/sales,current,target\n\
-            vxus,{},${},${}\n\
-            bndx,{},${},${}\n\
-            vwo,{},${},${}\n\
+            vv,{},${},${}\n\
             vo,{},${},${}\n\
             vb,{},${},${}\n\
             vtc,{},${},${}\n\
-            vv,{},${},${}\n\
-            vmfxx,{},${},${}",
-            self.sale_purchases_needed.vxus,
-            self.current.vxus,
-            self.target.vxus,
-            self.sale_purchases_needed.bndx,
-            self.current.bndx,
-            self.target.bndx,
-            self.sale_purchases_needed.vwo,
-            self.current.vwo,
-            self.target.vwo,
+            bnd,{},${},${}\n\
+            vxus,{},${},${}\n\
+            vwo,{},${},${}\n\
+            bndx,{},${},${}\n\
+            cash,{},${},${}",
+            self.sale_purchases_needed.vv,
+            self.current.vv,
+            self.target.vv,
             self.sale_purchases_needed.vo,
             self.current.vo,
             self.target.vo,
@@ -438,9 +454,18 @@ impl AccountHoldings {
             self.sale_purchases_needed.vtc,
             self.current.vtc,
             self.target.vtc,
-            self.sale_purchases_needed.vv,
-            self.current.vv,
-            self.target.vv,
+            self.sale_purchases_needed.bnd,
+            self.current.bnd,
+            self.target.bnd,
+            self.sale_purchases_needed.vxus,
+            self.current.vxus,
+            self.target.vxus,
+            self.sale_purchases_needed.vwo,
+            self.current.vwo,
+            self.target.vwo,
+            self.sale_purchases_needed.bndx,
+            self.current.bndx,
+            self.target.bndx,
             self.sale_purchases_needed.vmfxx,
             self.current.vmfxx,
             self.target.vmfxx,
@@ -457,26 +482,21 @@ impl fmt::Display for AccountHoldings {
             f,
             "Symbol   Purchase/Sell  Current         Target\n\
             --------------------------------------------------\n\
-            VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
-            BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
-            VWO      {:<15.2}${:<15.2}${:<15.2}\n\
+            VV       {:<15.2}${:<15.2}${:<15.2}\n\
             VO       {:<15.2}${:<15.2}${:<15.2}\n\
             VB       {:<15.2}${:<15.2}${:<15.2}\n\
             VTC      {:<15.2}${:<15.2}${:<15.2}\n\
-            VV       {:<15.2}${:<15.2}${:<15.2}\n\
+            BND      {:<15.2}${:<15.2}${:<15.2}\n\
+            VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
+            VWO      {:<15.2}${:<15.2}${:<15.2}\n\
+            BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
             --------------------------------------------------\n\
             Cash                    ${:<15.2}${:<15.2}\n\
             Total                   ${:<15.2}\n\
             ==================================================",
-            self.sale_purchases_needed.vxus,
-            self.current.vxus,
-            self.target.vxus,
-            self.sale_purchases_needed.bndx,
-            self.current.bndx,
-            self.target.bndx,
-            self.sale_purchases_needed.vwo,
-            self.current.vwo,
-            self.target.vwo,
+            self.sale_purchases_needed.vv,
+            self.current.vv,
+            self.target.vv,
             self.sale_purchases_needed.vo,
             self.current.vo,
             self.target.vo,
@@ -486,9 +506,18 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.vtc,
             self.current.vtc,
             self.target.vtc,
-            self.sale_purchases_needed.vv,
-            self.current.vv,
-            self.target.vv,
+            self.sale_purchases_needed.bnd,
+            self.current.bnd,
+            self.target.bnd,
+            self.sale_purchases_needed.vxus,
+            self.current.vxus,
+            self.target.vxus,
+            self.sale_purchases_needed.vwo,
+            self.current.vwo,
+            self.target.vwo,
+            self.sale_purchases_needed.bndx,
+            self.current.bndx,
+            self.target.bndx,
             self.current.vmfxx,
             self.target.vmfxx,
             self.current.total_value()
