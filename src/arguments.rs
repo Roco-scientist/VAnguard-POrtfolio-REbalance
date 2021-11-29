@@ -18,7 +18,7 @@ pub struct Args {
     pub brok_acct_option: Option<u32>, // Vanguard brokerage account number
     pub trad_acct_option: Option<u32>, // Vanguard traditional IRA account number
     pub roth_acct_option: Option<u32>, // Vanguard roth IRA account number
-    pub output: bool, // Whether or not to output calculations to a txt file
+    pub output: bool,     // Whether or not to output calculations to a txt file
 }
 
 impl Args {

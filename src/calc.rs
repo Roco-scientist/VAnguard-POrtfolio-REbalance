@@ -1,11 +1,11 @@
-const HIGH_TO_LOW_RISK: [crate::holdings::StockSymbols; 7] = [
-    crate::holdings::StockSymbols::VWO,
-    crate::holdings::StockSymbols::VXUS,
-    crate::holdings::StockSymbols::VB,
-    crate::holdings::StockSymbols::VO,
-    crate::holdings::StockSymbols::VV,
-    crate::holdings::StockSymbols::BNDX,
-    crate::holdings::StockSymbols::VTC,
+const HIGH_TO_LOW_RISK: [crate::holdings::StockSymbol; 7] = [
+    crate::holdings::StockSymbol::VWO,
+    crate::holdings::StockSymbol::VXUS,
+    crate::holdings::StockSymbol::VB,
+    crate::holdings::StockSymbol::VO,
+    crate::holdings::StockSymbol::VV,
+    crate::holdings::StockSymbol::BNDX,
+    crate::holdings::StockSymbol::VTC,
 ];
 
 /// to_buy calculates how much of each stock and bond should be bought and sold to rebalance the
@@ -59,8 +59,8 @@ fn brokerage_calc(
     percent_bond: f32,
 ) -> crate::holdings::AccountHoldings {
     brokerage.add_stock_value(
-        crate::holdings::StockSymbols::VMFXX,
-        brokerage.stock_value(crate::holdings::StockSymbols::VMFXX) + added_value,
+        crate::holdings::StockSymbol::VMFXX,
+        brokerage.stock_value(crate::holdings::StockSymbol::VMFXX) + added_value,
     );
     let target_holdings = crate::holdings::ShareValues::new_target(
         brokerage.total_value(),
@@ -95,15 +95,15 @@ fn retirement_calc(
     let mut roth_ira_account_option = None;
     if let Some(mut roth_holdings) = vanguard_holdings.roth_ira_holdings() {
         roth_holdings.add_stock_value(
-            crate::holdings::StockSymbols::VMFXX,
-            roth_holdings.stock_value(crate::holdings::StockSymbols::VMFXX) + added_value_roth,
+            crate::holdings::StockSymbol::VMFXX,
+            roth_holdings.stock_value(crate::holdings::StockSymbol::VMFXX) + added_value_roth,
         );
         // If there are both Roth and Traditional accounts, shift the risky assets to the roth
         // account
         if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
             traditional_holdings.add_stock_value(
-                crate::holdings::StockSymbols::VMFXX,
-                traditional_holdings.stock_value(crate::holdings::StockSymbols::VMFXX)
+                crate::holdings::StockSymbol::VMFXX,
+                traditional_holdings.stock_value(crate::holdings::StockSymbol::VMFXX)
                     + added_value_trad,
             );
             let overall_target = crate::holdings::ShareValues::new_target(
@@ -172,8 +172,8 @@ fn retirement_calc(
         }
     } else if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
         traditional_holdings.add_stock_value(
-            crate::holdings::StockSymbols::VMFXX,
-            traditional_holdings.stock_value(crate::holdings::StockSymbols::VMFXX)
+            crate::holdings::StockSymbol::VMFXX,
+            traditional_holdings.stock_value(crate::holdings::StockSymbol::VMFXX)
                 + added_value_trad,
         );
         let traditional_target = crate::holdings::ShareValues::new_target(

@@ -16,16 +16,26 @@ async fn main() {
     } else {
         additional_us_stock = 0.0
     }
-    let vanguard_holdings =
-        vapore::holdings::parse_csv_download(&args.csv_path, args.clone())
-            .unwrap_or_else(|err| panic!("Holdings error: {}", err));
+    let vanguard_holdings = vapore::holdings::parse_csv_download(&args.csv_path, args.clone())
+        .unwrap_or_else(|err| panic!("Holdings error: {}", err));
     let rebalance = vapore::calc::to_buy(vanguard_holdings, additional_us_stock, args.clone());
-    println!("DESCRIPTIONS:\n{}\n", vapore::holdings::all_stock_descriptions());
+    println!(
+        "DESCRIPTIONS:\n{}\n",
+        vapore::holdings::all_stock_descriptions()
+    );
     println!("{}", rebalance);
     if args.output {
         let datetime = Local::now().format("%Y-%m-%d_%H:%M");
         let outfile = format!("{}_vanguard_rebalance.txt", datetime);
         let mut file = File::create(outfile).unwrap();
-        file.write_all(format!("DESCRIPTIONS:\n{}\n\n{}", vapore::holdings::all_stock_descriptions(), rebalance).as_bytes()).unwrap()
+        file.write_all(
+            format!(
+                "DESCRIPTIONS:\n{}\n\n{}",
+                vapore::holdings::all_stock_descriptions(),
+                rebalance
+            )
+            .as_bytes(),
+        )
+        .unwrap()
     }
 }

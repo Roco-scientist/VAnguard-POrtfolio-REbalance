@@ -27,25 +27,25 @@ const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
 // display
 lazy_static! {
-    static ref STOCK_DESCRIPTION: HashMap<StockSymbols, &'static str> = {
+    static ref STOCK_DESCRIPTION: HashMap<StockSymbol, &'static str> = {
         let mut m = HashMap::new();
-        m.insert(StockSymbols::VV, "US large cap");
-        m.insert(StockSymbols::VO, "US mid cap");
-        m.insert(StockSymbols::VB, "US small cap");
-        m.insert(StockSymbols::VTC, "US total corporate bond");
-        m.insert(StockSymbols::BND, "US total bond");
-        m.insert(StockSymbols::VXUS, "Total international stock");
-        m.insert(StockSymbols::VWO, "Emerging markets stock");
-        m.insert(StockSymbols::BNDX, "Total international bond");
+        m.insert(StockSymbol::VV, "US large cap");
+        m.insert(StockSymbol::VO, "US mid cap");
+        m.insert(StockSymbol::VB, "US small cap");
+        m.insert(StockSymbol::VTC, "US total corporate bond");
+        m.insert(StockSymbol::BND, "US total bond");
+        m.insert(StockSymbol::VXUS, "Total international stock");
+        m.insert(StockSymbol::VWO, "Emerging markets stock");
+        m.insert(StockSymbol::BNDX, "Total international bond");
         m
     };
 }
 
-/// StockSymbols is an enum which holds all stock symbols which are supported.  Empty is used to
+/// StockSymbol is an enum which holds all stock symbols which are supported.  Empty is used to
 /// initiated structs which use this enum.  Other<String> is a holder of any stock that is not
 /// supported, where the String is the stock symbol.
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
-pub enum StockSymbols {
+pub enum StockSymbol {
     VXUS,
     BNDX,
     BND,
@@ -59,42 +59,44 @@ pub enum StockSymbols {
     Other(String),
 }
 
-impl StockSymbols {
-
-    /// new creates a new StockSymbols enum based on the string value.
+impl StockSymbol {
+    /// new creates a new StockSymbol enum based on the string value.
     ///
     ///  # Example
     ///
     ///  ```
-    ///  use vapore::holdings::StockSymbols;
+    ///  use vapore::holdings::StockSymbol;
     ///
-    ///  let bnd = StockSymbols::new("BND");
-    ///  assert_eq!(bnd, StockSymbols::BND);
+    ///  let bnd = StockSymbol::new("BND");
+    ///  assert_eq!(bnd, StockSymbol::BND);
     ///  ```
     pub fn new(symbol: &str) -> Self {
         match symbol {
-            "VXUS" => StockSymbols::VXUS,
-            "BNDX" => StockSymbols::BNDX,
-            "BND" => StockSymbols::BND,
-            "VWO" => StockSymbols::VWO,
-            "VO" => StockSymbols::VO,
-            "VB" => StockSymbols::VB,
-            "VTC" => StockSymbols::VTC,
-            "VV" => StockSymbols::VV,
-            "VMFXX" => StockSymbols::VMFXX,
-            _ => StockSymbols::Other(symbol.to_string()),
+            "VXUS" => StockSymbol::VXUS,
+            "BNDX" => StockSymbol::BNDX,
+            "BND" => StockSymbol::BND,
+            "VWO" => StockSymbol::VWO,
+            "VO" => StockSymbol::VO,
+            "VB" => StockSymbol::VB,
+            "VTC" => StockSymbol::VTC,
+            "VV" => StockSymbol::VV,
+            "VMFXX" => StockSymbol::VMFXX,
+            _ => {
+                eprintln!("{} is not supported within this algorithm\n", symbol);
+                StockSymbol::Other(symbol.to_string())
+            }
         }
     }
 
-    /// description returns a string of the StockSymbols description.  If the stock is not
+    /// description returns a string of the StockSymbol description.  If the stock is not
     /// supported, a "No description" String is returned.
     ///
     /// # Example
     ///
     /// ```
-    ///  use vapore::holdings::StockSymbols;
+    ///  use vapore::holdings::StockSymbol;
     ///
-    ///  let bnd = StockSymbols::new("BND");
+    ///  let bnd = StockSymbol::new("BND");
     ///  let bnd_description = bnd.description();
     ///  assert_eq!(bnd_description, "BND: US total bond")
     ///
@@ -102,9 +104,9 @@ impl StockSymbols {
     pub fn description(&self) -> String {
         let description_option = STOCK_DESCRIPTION.get(self);
         if let Some(description) = description_option {
-            return format!("{:?}: {}", self, description)
+            return format!("{:?}: {}", self, description);
         } else {
-            return format!("No description for {:?}", self)
+            return format!("No description for {:?}", self);
         }
     }
 }
@@ -117,7 +119,7 @@ impl StockSymbols {
 ///
 /// ```
 /// use vapore::holdings;
-/// 
+///
 /// let descriptions = holdings::all_stock_descriptions();
 /// println!("{}", descriptions);
 ///
@@ -125,14 +127,14 @@ impl StockSymbols {
 pub fn all_stock_descriptions() -> String {
     let mut descriptions = String::new();
     for symbol in [
-        StockSymbols::VV,
-        StockSymbols::VO,
-        StockSymbols::VB,
-        StockSymbols::VTC,
-        StockSymbols::BND,
-        StockSymbols::VXUS,
-        StockSymbols::VWO,
-        StockSymbols::BNDX,
+        StockSymbol::VV,
+        StockSymbol::VO,
+        StockSymbol::VB,
+        StockSymbol::VTC,
+        StockSymbol::BND,
+        StockSymbol::VXUS,
+        StockSymbol::VWO,
+        StockSymbol::BNDX,
     ] {
         descriptions.push_str(&symbol.description());
         descriptions.push('\n')
@@ -182,7 +184,7 @@ impl ShareValues {
     /// new_quote creates a new ShareValues struct where all values are set to 1.  This is used for
     /// creating a new struct for stock quotes.  This way if any quotes are missing, they are
     /// automatically set to 1 to prevent any 0 division errors.  This also has the effect of
-    /// outputting the dollar amount when target value is divided by quote price.  This division 
+    /// outputting the dollar amount when target value is divided by quote price.  This division
     /// occurs to determine number of stocks to purchase/sell.
     pub fn new_quote() -> Self {
         ShareValues {
@@ -201,11 +203,11 @@ impl ShareValues {
     /// new_target creates a new target ShareValues struct which determines what to what values to
     /// rebalance to vanguard portfolio.
     ///
-    /// # Panic 
+    /// # Panic
     ///
     /// Panics when the percentages and fractions do not add up to 1 when they are added together.
-    /// This is necessary to make sure everything adds up to 100% of the total portfolio.  Adding 
-    /// up to less or more than 100% can happen when the const values determining balance distribution 
+    /// This is necessary to make sure everything adds up to 100% of the total portfolio.  Adding
+    /// up to less or more than 100% can happen when the const values determining balance distribution
     /// are changed without changing other values to make sure everything adds up.
     pub fn new_target(
         total_vanguard_value: f32,
@@ -235,19 +237,22 @@ impl ShareValues {
             + other_int_stock_value;
 
         // Calculate values for each stock
-        let vxus_value = (total_value * INT_TOTAL * percent_stock / 100.0)
-                - (other_int_stock_value * 2.0 / 3.0);
-        let bndx_value = (total_value * INT_BOND_FRACTION * percent_bond / 100.0) - other_int_bond_value;
-        let bnd_value =(total_value * US_TOT_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value / 2.0);
-        let vwo_value = (total_value * INT_EMERGING * percent_stock / 100.0)
-                - (other_int_stock_value / 3.0);
-        let vo_value = (total_value * EACH_US_STOCK * percent_stock / 100.0)
-                - (other_us_stock_value / 3.0);
-        let vb_value = (total_value * EACH_US_STOCK * percent_stock / 100.0)
-                - (other_us_stock_value / 3.0);
-        let vtc_value = (total_value * US_CORP_BOND_FRACTION * percent_bond / 100.0) - (other_us_bond_value / 2.0);
-        let vv_value = (total_value * EACH_US_STOCK * percent_stock / 100.0)
-                - (other_us_stock_value / 3.0);
+        let vxus_value =
+            (total_value * INT_TOTAL * percent_stock / 100.0) - (other_int_stock_value * 2.0 / 3.0);
+        let bndx_value =
+            (total_value * INT_BOND_FRACTION * percent_bond / 100.0) - other_int_bond_value;
+        let bnd_value = (total_value * US_TOT_BOND_FRACTION * percent_bond / 100.0)
+            - (other_us_bond_value / 2.0);
+        let vwo_value =
+            (total_value * INT_EMERGING * percent_stock / 100.0) - (other_int_stock_value / 3.0);
+        let vo_value =
+            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
+        let vb_value =
+            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
+        let vtc_value = (total_value * US_CORP_BOND_FRACTION * percent_bond / 100.0)
+            - (other_us_bond_value / 2.0);
+        let vv_value =
+            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
 
         // set vmfxx, ie cash, target value to 0 and return ShareValues
         ShareValues {
@@ -269,54 +274,62 @@ impl ShareValues {
             AddType::HoldingValue => value = stock_info.total_value,
         }
         match stock_info.symbol {
-            StockSymbols::VXUS => self.vxus = value,
-            StockSymbols::BNDX => self.bndx = value,
-            StockSymbols::BND => self.bnd = value,
-            StockSymbols::VWO => self.vwo = value,
-            StockSymbols::VO => self.vo = value,
-            StockSymbols::VB => self.vb = value,
-            StockSymbols::VTC => self.vtc = value,
-            StockSymbols::VV => self.vv = value,
-            StockSymbols::VMFXX => self.vmfxx = value,
-            StockSymbols::Empty => panic!("Stock symbol not set before adding value"),
-            StockSymbols::Other(symbol) => eprintln!("Stock ticker not supported: {}", symbol),
+            StockSymbol::VXUS => self.vxus = value,
+            StockSymbol::BNDX => self.bndx = value,
+            StockSymbol::BND => self.bnd = value,
+            StockSymbol::VWO => self.vwo = value,
+            StockSymbol::VO => self.vo = value,
+            StockSymbol::VB => self.vb = value,
+            StockSymbol::VTC => self.vtc = value,
+            StockSymbol::VV => self.vv = value,
+            StockSymbol::VMFXX => self.vmfxx = value,
+            StockSymbol::Empty => panic!("Stock symbol not set before adding value"),
+            StockSymbol::Other(_) => (),
         }
     }
 
-    pub fn add_stock_value(&mut self, stock_symbol: StockSymbols, value: f32) {
+    pub fn add_stock_value(&mut self, stock_symbol: StockSymbol, value: f32) {
         match stock_symbol {
-            StockSymbols::VXUS => self.vxus = value,
-            StockSymbols::BNDX => self.bndx = value,
-            StockSymbols::BND => self.bnd = value,
-            StockSymbols::VWO => self.vwo = value,
-            StockSymbols::VO => self.vo = value,
-            StockSymbols::VB => self.vb = value,
-            StockSymbols::VTC => self.vtc = value,
-            StockSymbols::VV => self.vv = value,
-            StockSymbols::VMFXX => self.vmfxx = value,
-            StockSymbols::Empty => panic!("Stock symbol not set before adding value"),
-            StockSymbols::Other(symbol) => eprintln!("Stock ticker not supported: {}", symbol),
+            StockSymbol::VXUS => self.vxus = value,
+            StockSymbol::BNDX => self.bndx = value,
+            StockSymbol::BND => self.bnd = value,
+            StockSymbol::VWO => self.vwo = value,
+            StockSymbol::VO => self.vo = value,
+            StockSymbol::VB => self.vb = value,
+            StockSymbol::VTC => self.vtc = value,
+            StockSymbol::VV => self.vv = value,
+            StockSymbol::VMFXX => self.vmfxx = value,
+            StockSymbol::Empty => panic!("Stock symbol not set before adding value"),
+            StockSymbol::Other(_) => (),
         }
     }
 
-    pub fn stock_value(&self, stock_symbol: StockSymbols) -> f32 {
+    pub fn stock_value(&self, stock_symbol: StockSymbol) -> f32 {
         match stock_symbol {
-            StockSymbols::VXUS => self.vxus,
-            StockSymbols::BNDX => self.bndx,
-            StockSymbols::BND => self.bnd,
-            StockSymbols::VWO => self.vwo,
-            StockSymbols::VO => self.vo,
-            StockSymbols::VB => self.vb,
-            StockSymbols::VTC => self.vtc,
-            StockSymbols::VV => self.vv,
-            StockSymbols::VMFXX => self.vmfxx,
-            StockSymbols::Empty => panic!("Value retrieval not supported for empty stock symbol"),
-            StockSymbols::Other(symbol) => panic!("Value retrieval not supported for {}", symbol),
+            StockSymbol::VXUS => self.vxus,
+            StockSymbol::BNDX => self.bndx,
+            StockSymbol::BND => self.bnd,
+            StockSymbol::VWO => self.vwo,
+            StockSymbol::VO => self.vo,
+            StockSymbol::VB => self.vb,
+            StockSymbol::VTC => self.vtc,
+            StockSymbol::VV => self.vv,
+            StockSymbol::VMFXX => self.vmfxx,
+            StockSymbol::Empty => panic!("Value retrieval not supported for empty stock symbol"),
+            StockSymbol::Other(symbol) => panic!("Value retrieval not supported for {}", symbol),
         }
     }
 
     pub fn total_value(&self) -> f32 {
-        self.vxus + self.bndx + self.bnd + self.vwo + self.vo + self.vb + self.vtc + self.vv + self.vmfxx
+        self.vxus
+            + self.bndx
+            + self.bnd
+            + self.vwo
+            + self.vo
+            + self.vb
+            + self.vtc
+            + self.vv
+            + self.vmfxx
     }
 
     pub fn subtract(&self, other_value: &ShareValues) -> ShareValues {
@@ -607,7 +620,7 @@ impl fmt::Display for AccountHoldings {
 #[derive(Clone)]
 pub struct StockInfo {
     pub account_number: u32,
-    pub symbol: StockSymbols,
+    pub symbol: StockSymbol,
     pub share_price: f32,
     pub total_value: f32,
     account_added: bool,
@@ -620,7 +633,7 @@ impl StockInfo {
     pub fn new() -> Self {
         StockInfo {
             account_number: 0,
-            symbol: StockSymbols::Empty,
+            symbol: StockSymbol::Empty,
             share_price: 0.0,
             total_value: 0.0,
             account_added: false,
@@ -633,7 +646,7 @@ impl StockInfo {
         self.account_number = account_number;
         self.account_added = true;
     }
-    pub fn add_symbol(&mut self, symbol: StockSymbols) {
+    pub fn add_symbol(&mut self, symbol: StockSymbol) {
         self.symbol = symbol;
         self.symbol_added = true;
     }
@@ -694,7 +707,7 @@ pub fn parse_csv_download(
                 for (value, head) in row_split.iter().zip(&header) {
                     match head.as_str() {
                         "Account Number" => stock_info.add_account(value.parse::<u32>()?),
-                        "Symbol" => stock_info.add_symbol(StockSymbols::new(value)),
+                        "Symbol" => stock_info.add_symbol(StockSymbol::new(value)),
                         "Share Price" => stock_info.add_share_price(value.parse::<f32>()?),
                         "Total Value" => stock_info.add_total_value(value.parse::<f32>()?),
                         _ => continue,
