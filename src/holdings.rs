@@ -324,6 +324,54 @@ impl VanguardHoldings {
     }
 }
 
+pub struct VanguardRebalance {
+    brokerage: Option<AccountHoldings>,
+    traditional_ira: Option<AccountHoldings>,
+    roth_ira: Option<AccountHoldings>,
+}
+
+impl VanguardRebalance {
+    pub fn new() -> Self {
+        VanguardRebalance {
+            brokerage: None,
+            traditional_ira: None,
+            roth_ira: None,
+        }
+    }
+    pub fn add_account_holdings(&mut self, acct_holding: AccountHoldings, acct_type: HoldingType) {
+        match acct_type {
+            HoldingType::Brokerage => self.brokerage = Some(acct_holding),
+            HoldingType::TraditionalIra => self.traditional_ira = Some(acct_holding),
+            HoldingType::RothIra => self.roth_ira = Some(acct_holding),
+        }
+    }
+}
+
+impl Default for VanguardRebalance {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Display for VanguardRebalance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut out_string = String::new();
+        if let Some(traditional_ira_account) = &self.traditional_ira {
+            out_string.push_str(&format!(
+                "Traditional IRA:\n{}\n\n",
+                traditional_ira_account
+            ))
+        }
+        if let Some(roth_ira_account) = &self.roth_ira {
+            out_string.push_str(&format!("Roth IRA:\n{}\n\n", roth_ira_account))
+        }
+        if let Some(brokerage_account) = &self.brokerage {
+            out_string.push_str(&format!("Brokerage:\n{}\n\n", brokerage_account))
+        }
+        write!(f, "{}", out_string.trim_end_matches('\n'))
+    }
+}
+
 pub struct AccountHoldings {
     current: ShareValues,
     target: ShareValues,
@@ -403,8 +451,10 @@ impl fmt::Display for AccountHoldings {
             VTC      {:<15.2}${:<15.2}${:<15.2}\n\
             VV       {:<15.2}${:<15.2}${:<15.2}\n\
             VTIVX    {:<15.2}${:<15.2}${:<15.2}\n\
+            -----------------------------------------------\n\
             Cash                    ${:<15.2}${:<15.2}\n\
-            Total                   ${:<15.2}",
+            Total                   ${:<15.2}\n\
+            ===============================================",
             self.sale_purchases_needed.vxus,
             self.current.vxus,
             self.target.vxus,

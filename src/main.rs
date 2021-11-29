@@ -17,5 +17,6 @@ async fn main() {
     let vanguard_holdings =
         vanguard_buy::holdings::parse_csv_download(&args.csv_path, args.clone())
             .unwrap_or_else(|err| panic!("Holdings error: {}", err));
-    vanguard_buy::calc::to_buy(vanguard_holdings, additional_us_stock, args)
+    let rebalance = vanguard_buy::calc::to_buy(vanguard_holdings, additional_us_stock, args);
+    println!("{}", rebalance)
 }

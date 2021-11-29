@@ -14,24 +14,32 @@ pub fn to_buy(
     vanguard_holdings: crate::holdings::VanguardHoldings,
     alpaca_holdings: f32,
     args: crate::arguments::Args,
-) {
-    retirement_calc(
+) -> crate::holdings::VanguardRebalance {
+    let mut rebalance = crate::holdings::VanguardRebalance::new();
+    let (traditional_ira_account_option, roth_ira_account_option) = retirement_calc(
         &vanguard_holdings,
         args.roth_add,
         args.traditional_add,
         args.percent_stock_retirement,
         args.percent_bond_retirement,
     );
+    if let Some(traditional_account) = traditional_ira_account_option {
+        rebalance.add_account_holdings(traditional_account, crate::holdings::HoldingType::TraditionalIra)
+    }
+    if let Some(roth_account) = roth_ira_account_option {
+        rebalance.add_account_holdings(roth_account, crate::holdings::HoldingType::RothIra)
+    }
     if let Some(brokerage_holdings) = vanguard_holdings.brockerage_holdings() {
-        brokerage_calc(
+        rebalance.add_account_holdings(brokerage_calc(
             vanguard_holdings.stock_quotes(),
             brokerage_holdings,
             alpaca_holdings,
             args.brokerage_add,
             args.percent_stock_brokerage,
             args.percent_bond_brokerage,
-        );
+        ), crate::holdings::HoldingType::Brokerage)
     }
+    rebalance
 }
 
 /// brokerage_calc calculates the amount of stocks and bonds that should be bought/sold within the
@@ -43,7 +51,7 @@ fn brokerage_calc(
     added_value: f32,
     percent_stock: f32,
     percent_bond: f32,
-) {
+) -> crate::holdings::AccountHoldings {
     brokerage.add_stock_value(
         crate::holdings::StockSymbols::VMFXX,
         brokerage.stock_value(crate::holdings::StockSymbols::VMFXX) + added_value,
@@ -59,9 +67,7 @@ fn brokerage_calc(
     );
     let difference = target_holdings.subtract(&brokerage);
     let stock_purchase = difference.divide(&quotes);
-    let brokerage_account =
-        crate::holdings::AccountHoldings::new(brokerage, target_holdings, stock_purchase);
-    println!("Brokerage:\n{}\n", brokerage_account);
+    crate::holdings::AccountHoldings::new(brokerage, target_holdings, stock_purchase)
 }
 
 /// retirement_calc calculates the amount of stocks and bonds that should be bought/sold within the
@@ -75,7 +81,12 @@ fn retirement_calc(
     added_value_trad: f32,
     percent_stock: f32,
     percent_bond: f32,
+) -> (
+    Option<crate::holdings::AccountHoldings>,
+    Option<crate::holdings::AccountHoldings>,
 ) {
+    let mut traditional_ira_account_option = None;
+    let mut roth_ira_account_option = None;
     if let Some(mut roth_holdings) = vanguard_holdings.roth_ira_holdings() {
         roth_holdings.add_stock_value(
             crate::holdings::StockSymbols::VMFXX,
@@ -90,8 +101,9 @@ fn retirement_calc(
                     + added_value_trad,
             );
             let total_value = roth_holdings.total_value() + traditional_holdings.total_value();
-            let total_value_sub_vtivx =
-                total_value - roth_holdings.stock_value(crate::holdings::StockSymbols::VTIVX) - traditional_holdings.stock_value(crate::holdings::StockSymbols::VTIVX);
+            let total_value_sub_vtivx = total_value
+                - roth_holdings.stock_value(crate::holdings::StockSymbols::VTIVX)
+                - traditional_holdings.stock_value(crate::holdings::StockSymbols::VTIVX);
             let mut overall_target = crate::holdings::ShareValues::new_target(
                 total_value_sub_vtivx,
                 percent_bond,
@@ -103,12 +115,16 @@ fn retirement_calc(
             );
             overall_target.add_stock_value(
                 crate::holdings::StockSymbols::VTIVX,
-                roth_holdings.stock_value(crate::holdings::StockSymbols::VTIVX) + traditional_holdings.stock_value(crate::holdings::StockSymbols::VTIVX),
+                roth_holdings.stock_value(crate::holdings::StockSymbols::VTIVX)
+                    + traditional_holdings.stock_value(crate::holdings::StockSymbols::VTIVX),
             );
             println!("Retirement target:\n{}\n", overall_target);
             let mut roth_total = roth_holdings.total_value();
             let mut roth_target = crate::holdings::ShareValues::new();
-            roth_target.add_stock_value(crate::holdings::StockSymbols::VTIVX, roth_holdings.stock_value(crate::holdings::StockSymbols::VTIVX));
+            roth_target.add_stock_value(
+                crate::holdings::StockSymbols::VTIVX,
+                roth_holdings.stock_value(crate::holdings::StockSymbols::VTIVX),
+            );
             roth_total -= roth_holdings.stock_value(crate::holdings::StockSymbols::VTIVX);
             for stock_symbol in HIGH_TO_LOW_RISK {
                 let value = overall_target
@@ -144,8 +160,8 @@ fn retirement_calc(
                 traditional_target,
                 traditional_purchase,
             );
-            println!("Roth IRA:\n{}\n", roth_account);
-            println!("Traditional IRA:\n{}\n", traditional_account)
+            roth_ira_account_option = Some(roth_account);
+            traditional_ira_account_option = Some(traditional_account);
         } else {
             let total_value_sub_vtivx = roth_holdings.total_value()
                 - roth_holdings.stock_value(crate::holdings::StockSymbols::VTIVX);
@@ -169,7 +185,7 @@ fn retirement_calc(
                 roth_target.clone(),
                 roth_purchase,
             );
-            println!("Roth IRA:\n{}\n", roth_account);
+            roth_ira_account_option = Some(roth_account);
         }
     } else if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
         traditional_holdings.add_stock_value(
@@ -199,6 +215,7 @@ fn retirement_calc(
             traditional_target,
             traditional_purchase,
         );
-        println!("Traditional IRA:\n{}\n", traditional_account)
+        traditional_ira_account_option = Some(traditional_account)
     }
+    (traditional_ira_account_option, roth_ira_account_option)
 }
