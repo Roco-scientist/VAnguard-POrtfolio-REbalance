@@ -1,13 +1,14 @@
 # Vanguard-Buy
 Algorithm setup to determine proper spread of Vanguard ETF index funds and adjust with the downloaded vanguards transaction file.  Current allocation:  
+  
 |Symbol|Description              |Type |% of type|
 |------|-------------------------|-----|---------|
-|VO    |US mid cap               |Stock|22.222   |
-|VB    |US small cap             |Stock|22.222   |
-|VV    |US large cap             |Stock|22.222   |
-|VXUS  |Total international stock|Stock|22.222   |
-|VWO   |Emerging markets         |Stock|11.111   |
+|VV    |US large cap stock       |Stock|22.222   |
+|VO    |US mid cap stock         |Stock|22.222   |
+|VB    |US small cap stock       |Stock|22.222   |
 |VTC   |US total corp bond       |Bond |66.666   |
+|VXUS  |Total international stock|Stock|22.222   |
+|VWO   |Emerging markets stock   |Stock|11.111   |
 |BNDX  |Total international bond |Bond |33.333   |
   
 The value depends on overall distribution.  As in, 90% stock and 10% bond, then each percentation
@@ -26,11 +27,16 @@ within the account which does not get taxed.
   - VXUS, BNDX, VWO, VO, VB, VTC, VV
 
 ### Compile
+Install and compile from source  
 ```
-git clone https://github.com/Roco-scientist/vanguard-buy
-cd vanguard-buy
+git clone https://github.com/Roco-scientist/VAnguard-POrtoflio-REbalance
+cd VAnguard-POrtoflio-REbalance
 cargo install --path .
 ```
+  
+
+Install and compile from crates.io  
+`cargo install vapore`
 
 ### Download vanguard transactions
 
@@ -46,7 +52,7 @@ Download transaction file from within the vanguard account
 9. Move the downloaded CSV file to where you want to run this program
 
 ### run
-`vanguard-buy --brokerage-acct <#> --roth-acct <#> --trad-acct <#> <vanguard_csv>`  
+`vapore --brokerage-acct <#> --roth-acct <#> --trad-acct <#> <vanguard_csv>`  
   
 If money is being added to any of the accounts, add one of the following flags along with the amount:
 - --add-brokerage <#>
