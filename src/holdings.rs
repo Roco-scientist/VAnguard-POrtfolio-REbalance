@@ -4,7 +4,7 @@ use std::{
     error::Error,
     fmt,
     fs::File,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader},
     vec::Vec,
 };
 
@@ -141,6 +141,153 @@ pub fn all_stock_descriptions() -> String {
     }
     descriptions.pop();
     descriptions
+}
+
+#[derive(Clone)]
+pub struct StockInfo {
+    pub account_number: u32,
+    pub symbol: StockSymbol,
+    pub share_price: f32,
+    pub total_value: f32,
+    account_added: bool,
+    symbol_added: bool,
+    share_price_added: bool,
+    total_value_added: bool,
+}
+
+impl StockInfo {
+
+    /// new initializes a new StockInfo struct.  Account number, symbol, share price etc. can then
+    /// be added with the other methods.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// ```
+    pub fn new() -> Self {
+        StockInfo {
+            account_number: 0,
+            symbol: StockSymbol::Empty,
+            share_price: 0.0,
+            total_value: 0.0,
+            account_added: false,
+            symbol_added: false,
+            share_price_added: false,
+            total_value_added: false,
+        }
+    }
+
+    /// add_account adds the vanguard account number to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    ///
+    /// assert_eq!(new_stock.account_number, 123456789);
+    /// ```
+    pub fn add_account(&mut self, account_number: u32) {
+        self.account_number = account_number;
+        self.account_added = true;
+    }
+
+    /// add_symbol adds the stock symbol to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    ///
+    /// assert_eq!(new_stock.symbol, holdings::StockSymbol::BND);
+    /// ```
+    pub fn add_symbol(&mut self, symbol: StockSymbol) {
+        self.symbol = symbol;
+        self.symbol_added = true;
+    }
+
+    /// add_share_price adds the stock quote price to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    ///
+    /// assert_eq!(new_stock.share_price, 234.50);
+    /// ```
+    pub fn add_share_price(&mut self, share_price: f32) {
+        self.share_price = share_price;
+        self.share_price_added = true;
+    }
+
+    /// add_total_value adds the account total value of the stock to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    /// new_stock.add_total_value(5000.00);
+    ///
+    /// assert_eq!(new_stock.total_value, 5000.00);
+    /// ```
+    pub fn add_total_value(&mut self, total_value: f32) {
+        self.total_value = total_value;
+        self.total_value_added = true;
+    }
+
+    /// finished returns a bool of whether or not all struct values have been added.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    /// new_stock.add_total_value(5000.00);
+    ///
+    /// assert!(new_stock.finished());
+    ///
+    /// let empty_stock = holdings::StockInfo::new();
+    /// assert!(!empty_stock.finished())
+    /// ```
+    pub fn finished(&self) -> bool {
+        [
+            self.account_added,
+            self.symbol_added,
+            self.share_price_added,
+            self.total_value_added,
+        ]
+        .iter()
+        .all(|value| *value)
+    }
+}
+
+impl Default for StockInfo {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// AddType is an enum used to distinguish between when a stock quote or an account holdings is
@@ -584,6 +731,8 @@ pub enum HoldingType {
     RothIra,
 }
 
+/// VanguardHoldings contains ShareValues structs for all accounts along with for the quotes.  This
+/// struct is creating during the parsing of the downloaded Vanguard file
 #[derive(Clone)]
 pub struct VanguardHoldings {
     brokerage: Option<ShareValues>,
@@ -593,6 +742,19 @@ pub struct VanguardHoldings {
 }
 
 impl VanguardHoldings {
+
+    /// new creates a new VanguardHoldings struct with the quotes added.  The rest of the accounts
+    /// needs to be added later
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let new_quotes = holdings::ShareValues::new_quote();
+    ///
+    /// let mut new_vanguard = holdings::VanguardHoldings::new(new_quotes);
+    /// ```
     pub fn new(quotes: ShareValues) -> Self {
         VanguardHoldings {
             brokerage: None,
@@ -601,6 +763,22 @@ impl VanguardHoldings {
             quotes,
         }
     }
+
+    /// add_holding adds a new account to the VanguardHoldings struct
+    /// 
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let new_quotes = holdings::ShareValues::new_quote();
+    ///
+    /// let new_values = holdings::ShareValues::new();
+    ///
+    /// let mut new_vanguard = holdings::VanguardHoldings::new(new_quotes);
+    /// new_vanguard.add_holding(new_values, holdings::HoldingType::RothIra);
+    /// ```
     pub fn add_holding(&mut self, holding: ShareValues, holding_type: HoldingType) {
         match holding_type {
             HoldingType::RothIra => self.roth_ira = Some(holding),
@@ -608,7 +786,26 @@ impl VanguardHoldings {
             HoldingType::TraditionalIra => self.traditional_ira = Some(holding),
         }
     }
-    pub fn brockerage_holdings(&self) -> Option<ShareValues> {
+
+    /// add_holding adds a new account to the VanguardHoldings struct
+    /// 
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let new_quotes = holdings::ShareValues::new_quote();
+    ///
+    /// let new_values = holdings::ShareValues::new();
+    ///
+    /// let mut new_vanguard = holdings::VanguardHoldings::new(new_quotes);
+    /// new_vanguard.add_holding(new_values, holdings::HoldingType::Brokerage);
+    ///
+    /// let new_values_comp = holdings::ShareValues::new();
+    /// assert_eq!(new_vanguard.brokerage_holdings(), Some(new_values_comp));
+    /// ```
+    pub fn brokerage_holdings(&self) -> Option<ShareValues> {
         self.brokerage.clone()
     }
     pub fn traditional_ira_holdings(&self) -> Option<ShareValues> {
@@ -622,54 +819,8 @@ impl VanguardHoldings {
     }
 }
 
-pub struct VanguardRebalance {
-    brokerage: Option<AccountHoldings>,
-    traditional_ira: Option<AccountHoldings>,
-    roth_ira: Option<AccountHoldings>,
-}
-
-impl VanguardRebalance {
-    pub fn new() -> Self {
-        VanguardRebalance {
-            brokerage: None,
-            traditional_ira: None,
-            roth_ira: None,
-        }
-    }
-    pub fn add_account_holdings(&mut self, acct_holding: AccountHoldings, acct_type: HoldingType) {
-        match acct_type {
-            HoldingType::Brokerage => self.brokerage = Some(acct_holding),
-            HoldingType::TraditionalIra => self.traditional_ira = Some(acct_holding),
-            HoldingType::RothIra => self.roth_ira = Some(acct_holding),
-        }
-    }
-}
-
-impl Default for VanguardRebalance {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl fmt::Display for VanguardRebalance {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut out_string = String::new();
-        if let Some(traditional_ira_account) = &self.traditional_ira {
-            out_string.push_str(&format!(
-                "Traditional IRA:\n{}\n\n",
-                traditional_ira_account
-            ))
-        }
-        if let Some(roth_ira_account) = &self.roth_ira {
-            out_string.push_str(&format!("Roth IRA:\n{}\n\n", roth_ira_account))
-        }
-        if let Some(brokerage_account) = &self.brokerage {
-            out_string.push_str(&format!("Brokerage:\n{}\n\n", brokerage_account))
-        }
-        write!(f, "{}", out_string.trim_end_matches('\n'))
-    }
-}
-
+/// AccountHoldings is a holder of current, target, and purchase/sales information for an account.
+/// It also creates a Display for this information.
 pub struct AccountHoldings {
     current: ShareValues,
     target: ShareValues,
@@ -677,6 +828,23 @@ pub struct AccountHoldings {
 }
 
 impl AccountHoldings {
+
+    /// new creates a new AccountHoldings struct from current, target, and sales/purchases
+    /// Sharevalues structs.
+    /// 
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let quotes = holdings::ShareValues::new_quote();
+    ///
+    /// let brokerage_current = holdings::ShareValues::new();
+    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// let purchase_sales = brokerage_current.divide(&quotes);
+    ///
+    /// let brokerage_account = holdings::AccountHoldings::new(brokerage_current, brokerage_target, purchase_sales);
+    /// ```
     pub fn new(
         current: ShareValues,
         target: ShareValues,
@@ -687,51 +855,6 @@ impl AccountHoldings {
             target,
             sale_purchases_needed,
         }
-    }
-
-    pub fn to_csv(&self, out: String) -> Result<(), Box<dyn Error>> {
-        let out_text = format!(
-            "symbol,purchase/sales,current,target\n\
-            vv,{},${},${}\n\
-            vo,{},${},${}\n\
-            vb,{},${},${}\n\
-            vtc,{},${},${}\n\
-            bnd,{},${},${}\n\
-            vxus,{},${},${}\n\
-            vwo,{},${},${}\n\
-            bndx,{},${},${}\n\
-            cash,{},${},${}",
-            self.sale_purchases_needed.vv,
-            self.current.vv,
-            self.target.vv,
-            self.sale_purchases_needed.vo,
-            self.current.vo,
-            self.target.vo,
-            self.sale_purchases_needed.vb,
-            self.current.vb,
-            self.target.vb,
-            self.sale_purchases_needed.vtc,
-            self.current.vtc,
-            self.target.vtc,
-            self.sale_purchases_needed.bnd,
-            self.current.bnd,
-            self.target.bnd,
-            self.sale_purchases_needed.vxus,
-            self.current.vxus,
-            self.target.vxus,
-            self.sale_purchases_needed.vwo,
-            self.current.vwo,
-            self.target.vwo,
-            self.sale_purchases_needed.bndx,
-            self.current.bndx,
-            self.target.bndx,
-            self.sale_purchases_needed.vmfxx,
-            self.current.vmfxx,
-            self.target.vmfxx,
-        );
-        let mut out_file = File::create(out)?;
-        out_file.write_all(out_text.as_bytes())?;
-        Ok(())
     }
 }
 
@@ -784,150 +907,84 @@ impl fmt::Display for AccountHoldings {
     }
 }
 
-#[derive(Clone)]
-pub struct StockInfo {
-    pub account_number: u32,
-    pub symbol: StockSymbol,
-    pub share_price: f32,
-    pub total_value: f32,
-    account_added: bool,
-    symbol_added: bool,
-    share_price_added: bool,
-    total_value_added: bool,
+/// VanguardRebalance holds AccountHoldings structs for each account; brokerage, traditional IRA,
+/// and roth IRA.  Each AccountHoldings struct holds the information of current holdings, target
+/// holdings, and the amount of stocks needed to purchase/sell in order to rebalance
+pub struct VanguardRebalance {
+    brokerage: Option<AccountHoldings>,
+    traditional_ira: Option<AccountHoldings>,
+    roth_ira: Option<AccountHoldings>,
 }
 
-impl StockInfo {
+impl VanguardRebalance {
 
-    /// new initializes a new StockInfo struct.  Account number, symbol, share price etc. can then
-    /// be added with the other methods.
-    ///
+    /// new creates a new empty VanguardRebalance struct
+    /// 
     /// # Example
     ///
     /// ```
     /// use vapore::holdings;
     ///
-    /// let mut new_stock = holdings::StockInfo::new();
+    /// let vanguard_rebalance = holdings::VanguardRebalance::new();
     /// ```
     pub fn new() -> Self {
-        StockInfo {
-            account_number: 0,
-            symbol: StockSymbol::Empty,
-            share_price: 0.0,
-            total_value: 0.0,
-            account_added: false,
-            symbol_added: false,
-            share_price_added: false,
-            total_value_added: false,
+        VanguardRebalance {
+            brokerage: None,
+            traditional_ira: None,
+            roth_ira: None,
         }
     }
 
-    /// add_account adds the vanguard account number to the StockInfo struct
-    ///
+    /// add_account_holdings adds either roth IRA, traditional IRA, or brokerage AccountHoldings
+    /// struct to the current VanguardRebalance struct.
+    /// 
     /// # Example
     ///
     /// ```
     /// use vapore::holdings;
     ///
-    /// let mut new_stock = holdings::StockInfo::new();
-    /// new_stock.add_account(123456789);
+    /// let quotes = holdings::ShareValues::new_quote();
     ///
-    /// assert_eq!(new_stock.account_number, 123456789);
+    /// let brokerage_current = holdings::ShareValues::new();
+    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// let purchase_sales = brokerage_current.divide(&quotes);
+    ///
+    /// let brokerage_account = holdings::AccountHoldings::new(brokerage_current, brokerage_target, purchase_sales);
+    ///
+    /// let mut vanguard_rebalance = holdings::VanguardRebalance::new();
+    /// vanguard_rebalance.add_account_holdings(brokerage_account, holdings::HoldingType::Brokerage);
     /// ```
-    pub fn add_account(&mut self, account_number: u32) {
-        self.account_number = account_number;
-        self.account_added = true;
-    }
-
-    /// add_symbol adds the stock symbol to the StockInfo struct
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use vapore::holdings;
-    ///
-    /// let mut new_stock = holdings::StockInfo::new();
-    /// new_stock.add_account(123456789);
-    /// new_stock.add_symbol(holdings::StockSymbol::BND);
-    ///
-    /// assert_eq!(new_stock.symbol, holdings::StockSymbol::BND);
-    /// ```
-    pub fn add_symbol(&mut self, symbol: StockSymbol) {
-        self.symbol = symbol;
-        self.symbol_added = true;
-    }
-
-    /// add_share_price adds the stock quote price to the StockInfo struct
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use vapore::holdings;
-    ///
-    /// let mut new_stock = holdings::StockInfo::new();
-    /// new_stock.add_account(123456789);
-    /// new_stock.add_symbol(holdings::StockSymbol::BND);
-    /// new_stock.add_share_price(234.50);
-    ///
-    /// assert_eq!(new_stock.share_price, 234.50);
-    /// ```
-    pub fn add_share_price(&mut self, share_price: f32) {
-        self.share_price = share_price;
-        self.share_price_added = true;
-    }
-
-    /// add_total_value adds the account total value of the stock to the StockInfo struct
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use vapore::holdings;
-    ///
-    /// let mut new_stock = holdings::StockInfo::new();
-    /// new_stock.add_account(123456789);
-    /// new_stock.add_symbol(holdings::StockSymbol::BND);
-    /// new_stock.add_share_price(234.50);
-    /// new_stock.add_total_value(5000.00);
-    ///
-    /// assert_eq!(new_stock.total_value, 5000.00);
-    /// ```
-    pub fn add_total_value(&mut self, total_value: f32) {
-        self.total_value = total_value;
-        self.total_value_added = true;
-    }
-
-    /// finished returns a bool of whether or not all struct values have been added.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use vapore::holdings;
-    ///
-    /// let mut new_stock = holdings::StockInfo::new();
-    /// new_stock.add_account(123456789);
-    /// new_stock.add_symbol(holdings::StockSymbol::BND);
-    /// new_stock.add_share_price(234.50);
-    /// new_stock.add_total_value(5000.00);
-    ///
-    /// assert!(new_stock.finished());
-    ///
-    /// let empty_stock = holdings::StockInfo::new();
-    /// assert!(!empty_stock.finished())
-    /// ```
-    pub fn finished(&self) -> bool {
-        [
-            self.account_added,
-            self.symbol_added,
-            self.share_price_added,
-            self.total_value_added,
-        ]
-        .iter()
-        .all(|value| *value)
+    pub fn add_account_holdings(&mut self, acct_holding: AccountHoldings, acct_type: HoldingType) {
+        match acct_type {
+            HoldingType::Brokerage => self.brokerage = Some(acct_holding),
+            HoldingType::TraditionalIra => self.traditional_ira = Some(acct_holding),
+            HoldingType::RothIra => self.roth_ira = Some(acct_holding),
+        }
     }
 }
 
-impl Default for StockInfo {
+impl Default for VanguardRebalance {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl fmt::Display for VanguardRebalance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut out_string = String::new();
+        if let Some(traditional_ira_account) = &self.traditional_ira {
+            out_string.push_str(&format!(
+                "Traditional IRA:\n{}\n\n",
+                traditional_ira_account
+            ))
+        }
+        if let Some(roth_ira_account) = &self.roth_ira {
+            out_string.push_str(&format!("Roth IRA:\n{}\n\n", roth_ira_account))
+        }
+        if let Some(brokerage_account) = &self.brokerage {
+            out_string.push_str(&format!("Brokerage:\n{}\n\n", brokerage_account))
+        }
+        write!(f, "{}", out_string.trim_end_matches('\n'))
     }
 }
 
@@ -937,6 +994,9 @@ custom_error! {AccountNumberError
     RothIra =  "Roth IRA account number not found within vanguard download file",
 }
 
+/// parse_csv_download takes in the file path of the downloaded file from Vanguard and parses it
+/// into VanguardHoldings.  The VanguardHoldings is a struct which holds the values of what is
+/// contained within the vangaurd account along with quotes for each of the ETFs
 pub fn parse_csv_download(
     csv_path: &str,
     args: crate::arguments::Args,
@@ -945,6 +1005,10 @@ pub fn parse_csv_download(
     let csv_file = File::open(csv_path)?;
     let mut accounts: HashMap<u32, ShareValues> = HashMap::new();
     let mut quotes = ShareValues::new_quote();
+
+    // iterate through all of the rows of the vanguard downlaoaded file and add the information to
+    // StockInfo structs, which then are aggregated into the accounts hashmap where the account
+    // number is the key
     for row_result in BufReader::new(csv_file).lines() {
         let row = row_result?;
         if row.contains(',') {
@@ -978,6 +1042,10 @@ pub fn parse_csv_download(
             }
         }
     }
+
+    // if the brokerage account is input through CLI arguments, pull the data from the accounts
+    // hashmap and place the information into a variable which will be input into the
+    // VanguardHoldings struct
     let mut brokerage = None;
     if let Some(brokerage_acct) = args.brok_acct_option {
         if let Some(brokerage_holdings) = accounts.get(&brokerage_acct) {
@@ -987,6 +1055,9 @@ pub fn parse_csv_download(
         }
     }
 
+    // if the traditional IRA account is input through CLI arguments, pull the data from the accounts
+    // hashmap and place the information into a variable which will be input into the
+    // VanguardHoldings struct
     let mut traditional_ira = None;
     if let Some(traditional_acct) = args.trad_acct_option {
         if let Some(traditional_holdings) = accounts.get(&traditional_acct) {
@@ -996,6 +1067,9 @@ pub fn parse_csv_download(
         }
     }
 
+    // if the roth IRA account is input through CLI arguments, pull the data from the accounts
+    // hashmap and place the information into a variable which will be input into the
+    // VanguardHoldings struct
     let mut roth_ira = None;
     if let Some(roth_acct) = args.roth_acct_option {
         if let Some(roth_holdings) = accounts.get(&roth_acct) {
