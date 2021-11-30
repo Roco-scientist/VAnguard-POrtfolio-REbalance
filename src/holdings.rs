@@ -156,7 +156,6 @@ pub struct StockInfo {
 }
 
 impl StockInfo {
-
     /// new initializes a new StockInfo struct.  Account number, symbol, share price etc. can then
     /// be added with the other methods.
     ///
@@ -487,7 +486,7 @@ impl ShareValues {
     }
 
     /// add_stock_value adds stock value to the ShareValues struct with a float.  
-    /// 
+    ///
     /// # Panic
     ///
     /// Panics when an empty stock symbol is passed.  This will happen if the StockInfo struct is
@@ -521,7 +520,7 @@ impl ShareValues {
     }
 
     /// stock_value retrieves the stored stock value within the ShareValues struct
-    /// 
+    ///
     /// # Panic
     ///
     /// Panics when an empty stock symbol is passed.  This will happen if the StockInfo struct is
@@ -555,7 +554,7 @@ impl ShareValues {
     }
 
     /// total_value returns the sum of all of the values within the StockValue struct
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -582,7 +581,7 @@ impl ShareValues {
     }
 
     /// subtract subtracts a ShareValues struct from the current struct and returns the values
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -617,7 +616,7 @@ impl ShareValues {
     }
 
     /// add adds a ShareValues struct from the current struct and returns the values
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -654,7 +653,7 @@ impl ShareValues {
     /// divide divides the current ShareValues struct by a ShareValues struct and returns the values.  
     /// This can be used to divide the current values by another struct which contatins the quote
     /// values in order to return the number of stocks needed to purchase/sell.
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -742,7 +741,6 @@ pub struct VanguardHoldings {
 }
 
 impl VanguardHoldings {
-
     /// new creates a new VanguardHoldings struct with the quotes added.  The rest of the accounts
     /// needs to be added later
     ///
@@ -765,7 +763,7 @@ impl VanguardHoldings {
     }
 
     /// add_holding adds a new account to the VanguardHoldings struct
-    /// 
+    ///
     ///
     /// # Example
     ///
@@ -788,7 +786,7 @@ impl VanguardHoldings {
     }
 
     /// add_holding adds a new account to the VanguardHoldings struct
-    /// 
+    ///
     ///
     /// # Example
     ///
@@ -828,10 +826,9 @@ pub struct AccountHoldings {
 }
 
 impl AccountHoldings {
-
     /// new creates a new AccountHoldings struct from current, target, and sales/purchases
     /// Sharevalues structs.
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -917,9 +914,8 @@ pub struct VanguardRebalance {
 }
 
 impl VanguardRebalance {
-
     /// new creates a new empty VanguardRebalance struct
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -937,7 +933,7 @@ impl VanguardRebalance {
 
     /// add_account_holdings adds either roth IRA, traditional IRA, or brokerage AccountHoldings
     /// struct to the current VanguardRebalance struct.
-    /// 
+    ///
     /// # Example
     ///
     /// ```
