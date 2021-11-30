@@ -91,6 +91,10 @@ fn retirement_calc(
     Option<crate::holdings::AccountHoldings>,
     Option<crate::holdings::AccountHoldings>,
 ) {
+    println!(
+        "DESCRIPTIONS:\n{}\n",
+        crate::holdings::all_stock_descriptions()
+    );
     let mut traditional_ira_account_option = None;
     let mut roth_ira_account_option = None;
     if let Some(mut roth_holdings) = vanguard_holdings.roth_ira_holdings() {
