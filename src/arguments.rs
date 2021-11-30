@@ -18,7 +18,7 @@ pub struct Args {
     pub brok_acct_option: Option<u32>, // Vanguard brokerage account number
     pub trad_acct_option: Option<u32>, // Vanguard traditional IRA account number
     pub roth_acct_option: Option<u32>, // Vanguard roth IRA account number
-    pub output: bool, // Whether or not to output calculations to a txt file
+    pub output: bool,     // Whether or not to output calculations to a txt file
 }
 
 impl Args {
@@ -34,7 +34,6 @@ impl Args {
             )
             .arg(
                 Arg::with_name("percent-bond-brokerage")
-                    .short("b")
                     .long("bond-percent-brokerage")
                     .takes_value(true)
                     .default_value("40")
@@ -42,7 +41,6 @@ impl Args {
             )
             .arg(
                 Arg::with_name("percent-stock-brokerage")
-                    .short("s")
                     .long("stock-percent-brokerage")
                     .takes_value(true)
                     .default_value("60")
@@ -65,6 +63,7 @@ impl Args {
             .arg(
                 Arg::with_name("add-brokerage")
                     .long("add-brokerage")
+                    .short("B")
                     .takes_value(true)
                     .default_value("0")
                     .help("Amount of cash added to the brokerage account"),
@@ -72,6 +71,7 @@ impl Args {
             .arg(
                 Arg::with_name("add-traditional")
                     .long("add-traditional")
+                    .short("T")
                     .takes_value(true)
                     .default_value("0")
                     .help("Amount of cash added to the traditional IRA account"),
@@ -79,29 +79,33 @@ impl Args {
             .arg(
                 Arg::with_name("add-roth")
                     .long("add-roth")
+                    .short("R")
                     .takes_value(true)
                     .default_value("0")
                     .help("Amount of cash added to the roth IRA account"),
             )
             .arg(
-                Arg::with_name("brokerage-acct")
+                Arg::with_name("acct-num-b")
                     .long("brokerage-acct")
+                    .short("b")
                     .takes_value(true)
-                    .required_unless_one(&["roth-acct", "trad-acct"])
+                    .required_unless_one(&["acct-num-r", "acct-num-t"])
                     .help("Brokerage account number"),
             )
             .arg(
-                Arg::with_name("roth-acct")
+                Arg::with_name("acct-num-r")
                     .long("roth-acct")
+                    .short("r")
                     .takes_value(true)
-                    .required_unless_one(&["brokerage-acct", "trad-acct"])
+                    .required_unless_one(&["acct-num-b", "acct-num-t"])
                     .help("Roth IRA account number"),
             )
             .arg(
-                Arg::with_name("trad-acct")
+                Arg::with_name("acct-num-t")
                     .long("trad-acct")
+                    .short("t")
                     .takes_value(true)
-                    .required_unless_one(&["brokerage-acct", "roth-acct"])
+                    .required_unless_one(&["acct-num-b", "acct-num-r"])
                     .help("Traditional IRA account number"),
             )
             .arg(
@@ -155,15 +159,15 @@ impl Args {
             "Retirement stock and bond percentage does not add up to 100"
         );
         let mut brok_acct_option = None;
-        if let Some(brok_acct_str) = args.value_of("brokerage-acct") {
+        if let Some(brok_acct_str) = args.value_of("acct-num-b") {
             brok_acct_option = Some(brok_acct_str.parse::<u32>().unwrap())
         }
         let mut trad_acct_option = None;
-        if let Some(trad_acct_str) = args.value_of("trad-acct") {
+        if let Some(trad_acct_str) = args.value_of("acct-num-t") {
             trad_acct_option = Some(trad_acct_str.parse::<u32>().unwrap())
         }
         let mut roth_acct_option = None;
-        if let Some(roth_acct_str) = args.value_of("roth-acct") {
+        if let Some(roth_acct_str) = args.value_of("acct-num-r") {
             roth_acct_option = Some(roth_acct_str.parse::<u32>().unwrap())
         }
         let output = args.is_present("output");
