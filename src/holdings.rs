@@ -580,6 +580,15 @@ impl ShareValues {
             + self.vmfxx
     }
 
+    /// percent_stock_bond calculates the percent of stock and bond within the ShareValues.  This
+    /// should only be used when the struct contains dollar value amounts for the stock values.
+    pub fn percent_stock_bond(&self) -> (f32, f32) {
+        let total_bond = self.bndx + self.bnd + self.vtc;
+        let total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus;
+        let total = self.total_value() - self.vmfxx;
+        (total_stock / total * 100.0, total_bond / total * 100.0)
+    }
+
     /// subtract subtracts a ShareValues struct from the current struct and returns the values
     ///
     /// # Example
@@ -696,19 +705,25 @@ impl Default for ShareValues {
 
 impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (stock, bond) = self.percent_stock_bond();
         write!(
             f,
             "\
-            VV       {:.2}\n\
-            VO       {:.2}\n\
-            VB       {:.2}\n\
-            VTC      {:.2}\n\
-            BND      {:.2}\n\
-            VXUS     {:.2}\n\
-            VWO      {:.2}\n\
-            BNDX     {:.2}\n\
-            Cash     {:.2}\n\
-            Total    {:.2}\
+            Symbol     Value\n\
+            --------------------\n\
+            VV         {:.2}\n\
+            VO         {:.2}\n\
+            VB         {:.2}\n\
+            VTC        {:.2}\n\
+            BND        {:.2}\n\
+            VXUS       {:.2}\n\
+            VWO        {:.2}\n\
+            BNDX       {:.2}\n\
+            --------------------\n\
+            Cash       {:.2}\n\
+            Total      {:.2}\n\
+            Stock:Bond {:.1}:{:.1}\n\
+            ====================
             ",
             self.vv,
             self.vo,
@@ -720,6 +735,8 @@ impl fmt::Display for ShareValues {
             self.bndx,
             self.vmfxx,
             self.total_value(),
+            stock,
+            bond
         )
     }
 }
@@ -857,6 +874,12 @@ impl AccountHoldings {
 
 impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (current_stock, current_bond) = self.current.percent_stock_bond();
+        let current_stock_bond = format!("{:.1}:{:.1}", current_stock, current_bond);
+
+        let (target_stock, target_bond) = self.target.percent_stock_bond();
+        let target_stock_bond = format!("{:.1}:{:.1}", target_stock, target_bond);
+
         write!(
             f,
             "Symbol   Purchase/Sell  Current         Target\n\
@@ -872,6 +895,7 @@ impl fmt::Display for AccountHoldings {
             --------------------------------------------------\n\
             Cash                    ${:<15.2}${:<15.2}\n\
             Total                   ${:<15.2}\n\
+            Stock:Bond              {:<16}{:<15}\n\
             ==================================================",
             self.sale_purchases_needed.vv,
             self.current.vv,
@@ -899,7 +923,9 @@ impl fmt::Display for AccountHoldings {
             self.target.bndx,
             self.current.vmfxx,
             self.target.vmfxx,
-            self.current.total_value()
+            self.current.total_value(),
+            current_stock_bond,
+            target_stock_bond,
         )
     }
 }
