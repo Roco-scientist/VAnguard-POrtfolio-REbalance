@@ -32,7 +32,7 @@ pub fn to_buy(
     if let Some(roth_account) = roth_ira_account_option {
         rebalance.add_account_holdings(roth_account, crate::holdings::HoldingType::RothIra)
     }
-    if let Some(brokerage_holdings) = vanguard_holdings.brockerage_holdings() {
+    if let Some(brokerage_holdings) = vanguard_holdings.brokerage_holdings() {
         rebalance.add_account_holdings(
             brokerage_calc(
                 vanguard_holdings.stock_quotes(),
