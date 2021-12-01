@@ -1,4 +1,6 @@
-use crate::holdings::{AccountHoldings, HoldingType, ShareValues, StockSymbol, VanguardHoldings, VanguardRebalance};
+use crate::holdings::{
+    AccountHoldings, HoldingType, ShareValues, StockSymbol, VanguardHoldings, VanguardRebalance,
+};
 
 const HIGH_TO_LOW_RISK: [StockSymbol; 7] = [
     StockSymbol::VWO,
@@ -18,18 +20,16 @@ pub fn to_buy(
     args: crate::arguments::Args,
 ) -> VanguardRebalance {
     let mut rebalance = VanguardRebalance::new();
-    let (traditional_ira_account_option, roth_ira_account_option, target_overall_retirement_option) = retirement_calc(
-        &vanguard_holdings,
-        args.roth_add,
-        args.traditional_add,
-        args.percent_stock_retirement,
-        args.percent_bond_retirement,
-    );
+    let (traditional_ira_account_option, roth_ira_account_option, target_overall_retirement_option) =
+        retirement_calc(
+            &vanguard_holdings,
+            args.roth_add,
+            args.traditional_add,
+            args.percent_stock_retirement,
+            args.percent_bond_retirement,
+        );
     if let Some(traditional_account) = traditional_ira_account_option {
-        rebalance.add_account_holdings(
-            traditional_account,
-            HoldingType::TraditionalIra,
-        )
+        rebalance.add_account_holdings(traditional_account, HoldingType::TraditionalIra)
     }
     if let Some(roth_account) = roth_ira_account_option {
         rebalance.add_account_holdings(roth_account, HoldingType::RothIra)
@@ -99,7 +99,7 @@ fn retirement_calc(
 ) -> (
     Option<TraditionalIraAccount>,
     Option<RothIraAccount>,
-    Option<TargetOverallRetirement>
+    Option<TargetOverallRetirement>,
 ) {
     let mut traditional_ira_account_option = None;
     let mut roth_ira_account_option = None;
@@ -114,8 +114,7 @@ fn retirement_calc(
         if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
             traditional_holdings.add_stock_value(
                 StockSymbol::VMFXX,
-                traditional_holdings.stock_value(StockSymbol::VMFXX)
-                    + added_value_trad,
+                traditional_holdings.stock_value(StockSymbol::VMFXX) + added_value_trad,
             );
             let target_overall_retirement = ShareValues::new_target(
                 roth_holdings.total_value() + traditional_holdings.total_value(),
@@ -150,15 +149,10 @@ fn retirement_calc(
             );
             let roth_difference = roth_target - roth_holdings;
             let roth_purchase = roth_difference / vanguard_holdings.stock_quotes();
-            let roth_account = AccountHoldings::new(
-                roth_holdings,
-                roth_target,
-                roth_purchase,
-            );
+            let roth_account = AccountHoldings::new(roth_holdings, roth_target, roth_purchase);
             let traditional_target = target_overall_retirement - roth_target;
             let traditional_difference = traditional_target - traditional_holdings;
-            let traditional_purchase =
-                traditional_difference / vanguard_holdings.stock_quotes();
+            let traditional_purchase = traditional_difference / vanguard_holdings.stock_quotes();
             let traditional_account = AccountHoldings::new(
                 traditional_holdings,
                 traditional_target,
@@ -178,15 +172,13 @@ fn retirement_calc(
             );
             let roth_difference = roth_target - roth_holdings;
             let roth_purchase = roth_difference / vanguard_holdings.stock_quotes();
-            let roth_account =
-                AccountHoldings::new(roth_holdings, roth_target, roth_purchase);
+            let roth_account = AccountHoldings::new(roth_holdings, roth_target, roth_purchase);
             roth_ira_account_option = Some(roth_account);
         }
     } else if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
         traditional_holdings.add_stock_value(
             StockSymbol::VMFXX,
-            traditional_holdings.stock_value(StockSymbol::VMFXX)
-                + added_value_trad,
+            traditional_holdings.stock_value(StockSymbol::VMFXX) + added_value_trad,
         );
         let traditional_target = ShareValues::new_target(
             traditional_holdings.total_value(),
@@ -206,5 +198,9 @@ fn retirement_calc(
         );
         traditional_ira_account_option = Some(traditional_account)
     }
-    (traditional_ira_account_option, roth_ira_account_option, target_overall_retirement_option)
+    (
+        traditional_ira_account_option,
+        roth_ira_account_option,
+        target_overall_retirement_option,
+    )
 }
