@@ -74,8 +74,8 @@ fn brokerage_calc(
         0.0,
         0.0,
     );
-    let difference = target_holdings.subtract(&brokerage);
-    let stock_purchase = difference.divide(&quotes);
+    let difference = target_holdings - brokerage;
+    let stock_purchase = difference / quotes;
     crate::holdings::AccountHoldings::new(brokerage, target_holdings, stock_purchase)
 }
 
@@ -146,17 +146,17 @@ fn retirement_calc(
                 roth_target,
                 roth_holdings
             );
-            let roth_difference = roth_target.subtract(&roth_holdings);
-            let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());
+            let roth_difference = roth_target - roth_holdings;
+            let roth_purchase = roth_difference / vanguard_holdings.stock_quotes();
             let roth_account = crate::holdings::AccountHoldings::new(
                 roth_holdings,
-                roth_target.clone(),
+                roth_target,
                 roth_purchase,
             );
-            let traditional_target = target_overall_retirement.subtract(&roth_target);
-            let traditional_difference = traditional_target.subtract(&traditional_holdings);
+            let traditional_target = target_overall_retirement - roth_target;
+            let traditional_difference = traditional_target - traditional_holdings;
             let traditional_purchase =
-                traditional_difference.divide(&vanguard_holdings.stock_quotes());
+                traditional_difference / vanguard_holdings.stock_quotes();
             let traditional_account = crate::holdings::AccountHoldings::new(
                 traditional_holdings,
                 traditional_target,
@@ -174,8 +174,8 @@ fn retirement_calc(
                 0.0,
                 0.0,
             );
-            let roth_difference = roth_target.subtract(&roth_holdings);
-            let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());
+            let roth_difference = roth_target - roth_holdings;
+            let roth_purchase = roth_difference / vanguard_holdings.stock_quotes();
             let roth_account =
                 crate::holdings::AccountHoldings::new(roth_holdings, roth_target, roth_purchase);
             roth_ira_account_option = Some(roth_account);
@@ -195,8 +195,8 @@ fn retirement_calc(
             0.0,
             0.0,
         );
-        let traditional_difference = traditional_target.subtract(&traditional_holdings);
-        let traditional_purchase = traditional_difference.divide(&vanguard_holdings.stock_quotes());
+        let traditional_difference = traditional_target - traditional_holdings;
+        let traditional_purchase = traditional_difference / vanguard_holdings.stock_quotes();
         let traditional_account = crate::holdings::AccountHoldings::new(
             traditional_holdings,
             traditional_target,

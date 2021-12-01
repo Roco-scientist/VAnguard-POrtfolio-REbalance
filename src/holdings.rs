@@ -5,6 +5,7 @@ use std::{
     fmt,
     fs::File,
     io::{BufRead, BufReader},
+    ops::{Sub, Add, Div},
     vec::Vec,
 };
 
@@ -298,7 +299,7 @@ pub enum AddType {
 
 /// ShareValues holds the values for the supported ETF stocks.  The value can represent price,
 /// holding value, stock quantity etc.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub struct ShareValues {
     vxus: f32,
     bndx: f32,
@@ -436,7 +437,7 @@ impl ShareValues {
         }
     }
 
-    /// add_value adds stock value to the ShareValues struct with a StockInfo input.  StockInfo
+    /// add_stockinfo_value adds stock value to the ShareValues struct with a StockInfo input.  StockInfo
     /// structs are constructed when parsing the CSV file downloaded from vangaurd.  This is used
     /// for both creating the stock quotes ShareValues struct and holding values ShareValuues
     /// struc.  The add_type is used to distinguish between these two groups to know where from
@@ -459,12 +460,12 @@ impl ShareValues {
     /// new_stock.add_total_value(5000.00);
     ///
     /// let mut new_quotes = holdings::ShareValues::new_quote();
-    /// new_quotes.add_value(new_stock, holdings::AddType::StockPrice);
+    /// new_quotes.add_stockinfo_value(new_stock, holdings::AddType::StockPrice);
     ///
     /// assert_eq!(new_quotes.stock_value(holdings::StockSymbol::BND), 234.50);
     ///
     /// ```
-    pub fn add_value(&mut self, stock_info: StockInfo, add_type: AddType) {
+    pub fn add_stockinfo_value(&mut self, stock_info: StockInfo, add_type: AddType) {
         let value;
         match add_type {
             AddType::StockPrice => value = stock_info.share_price,
@@ -582,118 +583,19 @@ impl ShareValues {
 
     /// percent_stock_bond calculates the percent of stock and bond within the ShareValues.  This
     /// should only be used when the struct contains dollar value amounts for the stock values.
-    pub fn percent_stock_bond(&self) -> (f32, f32) {
-        let total_bond = self.bndx + self.bnd + self.vtc;
-        let total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus;
-        let total = self.total_value() - self.vmfxx;
+    pub fn percent_stock_bond(&self, additional_stock: Option<f32>, additional_bond: Option<f32>) -> (f32, f32) {
+        let mut total_bond = self.bndx + self.bnd + self.vtc;
+        let mut total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus;
+        let mut total = self.total_value() - self.vmfxx;
+        if let Some(add_stock) = additional_stock {
+            total_stock += add_stock;
+            total += add_stock;
+        }
+        if let Some(add_bond) = additional_bond {
+            total_bond += add_bond;
+            total += add_bond;
+        }
         (total_stock / total * 100.0, total_bond / total * 100.0)
-    }
-
-    /// subtract subtracts a ShareValues struct from the current struct and returns the values
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use vapore::holdings;
-    ///
-    /// let mut first_values = holdings::ShareValues::new();
-    /// first_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
-    /// first_values.add_stock_value(holdings::StockSymbol::BNDX, 2000.0);
-    ///
-    /// let mut second_values = holdings::ShareValues::new();
-    /// second_values.add_stock_value(holdings::StockSymbol::BND, 3000.0);
-    /// second_values.add_stock_value(holdings::StockSymbol::BNDX, 1000.0);
-    ///
-    /// let difference = first_values.subtract(&second_values);
-    ///
-    /// assert_eq!(difference.stock_value(holdings::StockSymbol::BND), 2000.0);
-    /// assert_eq!(difference.stock_value(holdings::StockSymbol::BNDX), 1000.0);
-    ///
-    /// ```
-    pub fn subtract(&self, other_value: &ShareValues) -> ShareValues {
-        ShareValues {
-            vxus: self.vxus - other_value.vxus,
-            bndx: self.bndx - other_value.bndx,
-            bnd: self.bnd - other_value.bnd,
-            vwo: self.vwo - other_value.vwo,
-            vo: self.vo - other_value.vo,
-            vb: self.vb - other_value.vb,
-            vtc: self.vtc - other_value.vtc,
-            vv: self.vv - other_value.vv,
-            vmfxx: self.vmfxx - other_value.vmfxx,
-        }
-    }
-
-    /// add adds a ShareValues struct from the current struct and returns the values
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use vapore::holdings;
-    ///
-    /// let mut first_values = holdings::ShareValues::new();
-    /// first_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
-    /// first_values.add_stock_value(holdings::StockSymbol::BNDX, 2000.0);
-    ///
-    /// let mut second_values = holdings::ShareValues::new();
-    /// second_values.add_stock_value(holdings::StockSymbol::BND, 3000.0);
-    /// second_values.add_stock_value(holdings::StockSymbol::BNDX, 1000.0);
-    ///
-    /// let sum = first_values.add(&second_values);
-    ///
-    /// assert_eq!(sum.stock_value(holdings::StockSymbol::BND), 8000.0);
-    /// assert_eq!(sum.stock_value(holdings::StockSymbol::BNDX), 3000.0);
-    ///
-    /// ```
-    pub fn add(&self, other_value: &ShareValues) -> ShareValues {
-        ShareValues {
-            vxus: self.vxus + other_value.vxus,
-            bndx: self.bndx + other_value.bndx,
-            bnd: self.bnd + other_value.bnd,
-            vwo: self.vwo + other_value.vwo,
-            vo: self.vo + other_value.vo,
-            vb: self.vb + other_value.vb,
-            vtc: self.vtc + other_value.vtc,
-            vv: self.vv + other_value.vv,
-            vmfxx: self.vmfxx + other_value.vmfxx,
-        }
-    }
-
-    /// divide divides the current ShareValues struct by a ShareValues struct and returns the values.  
-    /// This can be used to divide the current values by another struct which contatins the quote
-    /// values in order to return the number of stocks needed to purchase/sell.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use vapore::holdings;
-    ///
-    /// let mut first_values = holdings::ShareValues::new();
-    /// first_values.add_stock_value(holdings::StockSymbol::BND, 5000.0);
-    /// first_values.add_stock_value(holdings::StockSymbol::BNDX, 2000.0);
-    ///
-    /// let mut second_values = holdings::ShareValues::new();
-    /// second_values.add_stock_value(holdings::StockSymbol::BND, 2500.0);
-    /// second_values.add_stock_value(holdings::StockSymbol::BNDX, 500.0);
-    ///
-    /// let divided = first_values.divide(&second_values);
-    ///
-    /// assert_eq!(divided.stock_value(holdings::StockSymbol::BND), 2.0);
-    /// assert_eq!(divided.stock_value(holdings::StockSymbol::BNDX), 4.0);
-    ///
-    /// ```
-    pub fn divide(&self, divisor: &ShareValues) -> ShareValues {
-        ShareValues {
-            vxus: self.vxus / divisor.vxus,
-            bndx: self.bndx / divisor.bndx,
-            bnd: self.bnd / divisor.bnd,
-            vwo: self.vwo / divisor.vwo,
-            vo: self.vo / divisor.vo,
-            vb: self.vb / divisor.vb,
-            vtc: self.vtc / divisor.vtc,
-            vv: self.vv / divisor.vv,
-            vmfxx: self.vmfxx / divisor.vmfxx,
-        }
     }
 }
 
@@ -703,9 +605,67 @@ impl Default for ShareValues {
     }
 }
 
+impl Add for ShareValues {
+    type Output = ShareValues;
+
+    fn add(self, other: ShareValues) -> ShareValues {
+        ShareValues {
+            vxus: self.vxus + other.vxus,
+            bndx: self.bndx + other.bndx,
+            bnd: self.bnd + other.bnd,
+            vwo: self.vwo + other.vwo,
+            vo: self.vo + other.vo,
+            vb: self.vb + other.vb,
+            vtc: self.vtc + other.vtc,
+            vv: self.vv + other.vv,
+            vmfxx: self.vmfxx + other.vmfxx,
+        }
+    }
+
+}
+
+
+impl Sub for ShareValues {
+    type Output = ShareValues;
+
+    fn sub(self, other: ShareValues) -> ShareValues {
+        ShareValues {
+            vxus: self.vxus - other.vxus,
+            bndx: self.bndx - other.bndx,
+            bnd: self.bnd - other.bnd,
+            vwo: self.vwo - other.vwo,
+            vo: self.vo - other.vo,
+            vb: self.vb - other.vb,
+            vtc: self.vtc - other.vtc,
+            vv: self.vv - other.vv,
+            vmfxx: self.vmfxx - other.vmfxx,
+        }
+    }
+
+}
+
+impl Div for ShareValues {
+    type Output = ShareValues;
+
+    fn div(self, other: ShareValues) -> ShareValues {
+        ShareValues {
+            vxus: self.vxus / other.vxus,
+            bndx: self.bndx / other.bndx,
+            bnd: self.bnd / other.bnd,
+            vwo: self.vwo / other.vwo,
+            vo: self.vo / other.vo,
+            vb: self.vb / other.vb,
+            vtc: self.vtc / other.vtc,
+            vv: self.vv / other.vv,
+            vmfxx: self.vmfxx / other.vmfxx,
+        }
+    }
+
+}
+
 impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (stock, bond) = self.percent_stock_bond();
+        let (stock, bond) = self.percent_stock_bond(None, None);
         write!(
             f,
             "\
@@ -874,10 +834,10 @@ impl AccountHoldings {
 
 impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (current_stock, current_bond) = self.current.percent_stock_bond();
+        let (current_stock, current_bond) = self.current.percent_stock_bond(None, None);
         let current_stock_bond = format!("{:.1}:{:.1}", current_stock, current_bond);
 
-        let (target_stock, target_bond) = self.target.percent_stock_bond();
+        let (target_stock, target_bond) = self.target.percent_stock_bond(None, None);
         let target_stock_bond = format!("{:.1}:{:.1}", target_stock, target_bond);
 
         write!(
@@ -1070,8 +1030,8 @@ pub fn parse_csv_download(
                     let account_value = accounts
                         .entry(stock_info.account_number)
                         .or_insert_with(ShareValues::new);
-                    account_value.add_value(stock_info.clone(), AddType::HoldingValue);
-                    quotes.add_value(stock_info, AddType::StockPrice);
+                    account_value.add_stockinfo_value(stock_info.clone(), AddType::HoldingValue);
+                    quotes.add_stockinfo_value(stock_info, AddType::StockPrice);
                 }
             }
         }
