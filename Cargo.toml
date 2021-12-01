@@ -1,7 +1,7 @@
 [package]
 name = "vapore"
 description = "Vangaurd portfolio rebalancing algorithm"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 license = "Apache-2.0"
 readme = "README.md"
@@ -18,8 +18,8 @@ path = "src/main.rs"
 
 [dependencies]
 alpaca-finance = "0.2.1"
+anyhow = "1.0"
 chrono = "0.4.19"
 clap = "2.33"
-custom_error = "1.9"
 lazy_static = "1.4"
 tokio = "0.2.25"

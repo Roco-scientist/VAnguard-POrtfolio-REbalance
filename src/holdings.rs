@@ -1,11 +1,10 @@
-use custom_error::custom_error;
+use anyhow::{anyhow, Result};
 use std::{
     collections::HashMap,
-    error::Error,
     fmt,
     fs::File,
     io::{BufRead, BufReader},
-    ops::{Sub, Add, Div},
+    ops::{Add, Div, Sub},
     vec::Vec,
 };
 
@@ -583,7 +582,11 @@ impl ShareValues {
 
     /// percent_stock_bond calculates the percent of stock and bond within the ShareValues.  This
     /// should only be used when the struct contains dollar value amounts for the stock values.
-    pub fn percent_stock_bond(&self, additional_stock: Option<f32>, additional_bond: Option<f32>) -> (f32, f32) {
+    pub fn percent_stock_bond(
+        &self,
+        additional_stock: Option<f32>,
+        additional_bond: Option<f32>,
+    ) -> (f32, f32) {
         let mut total_bond = self.bndx + self.bnd + self.vtc;
         let mut total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus;
         let mut total = self.total_value() - self.vmfxx;
@@ -621,9 +624,7 @@ impl Add for ShareValues {
             vmfxx: self.vmfxx + other.vmfxx,
         }
     }
-
 }
-
 
 impl Sub for ShareValues {
     type Output = ShareValues;
@@ -641,7 +642,6 @@ impl Sub for ShareValues {
             vmfxx: self.vmfxx - other.vmfxx,
         }
     }
-
 }
 
 impl Div for ShareValues {
@@ -660,7 +660,6 @@ impl Div for ShareValues {
             vmfxx: self.vmfxx / other.vmfxx,
         }
     }
-
 }
 
 impl fmt::Display for ShareValues {
@@ -897,7 +896,7 @@ pub struct VanguardRebalance {
     brokerage: Option<AccountHoldings>,
     traditional_ira: Option<AccountHoldings>,
     roth_ira: Option<AccountHoldings>,
-    retirement_target: Option<ShareValues>
+    retirement_target: Option<ShareValues>,
 }
 
 impl VanguardRebalance {
@@ -962,16 +961,16 @@ impl fmt::Display for VanguardRebalance {
         let mut out_string = String::new();
         if let Some(retirement_target_values) = &self.retirement_target {
             out_string.push_str(&format!(
-                    "Retirement target:\n{}\n\n",
-                    retirement_target_values
-                                        ))
+                "Retirement target:\n{}\n\n",
+                retirement_target_values
+            ))
         }
         if let Some(traditional_ira_account) = &self.traditional_ira {
             out_string.push_str(&format!(
                 "Traditional IRA:\n{}\n\n",
                 traditional_ira_account
             ))
-        } 
+        }
         if let Some(roth_ira_account) = &self.roth_ira {
             out_string.push_str(&format!("Roth IRA:\n{}\n\n", roth_ira_account))
         }
@@ -982,19 +981,13 @@ impl fmt::Display for VanguardRebalance {
     }
 }
 
-custom_error! {AccountNumberError
-    Brokerage = "Brokerage account number not found within vanguard download file",
-    TraditionIra =  "Traditional IRA account number not found within vanguard download file",
-    RothIra =  "Roth IRA account number not found within vanguard download file",
-}
-
 /// parse_csv_download takes in the file path of the downloaded file from Vanguard and parses it
 /// into VanguardHoldings.  The VanguardHoldings is a struct which holds the values of what is
 /// contained within the vangaurd account along with quotes for each of the ETFs
 pub fn parse_csv_download(
     csv_path: &str,
     args: crate::arguments::Args,
-) -> Result<VanguardHoldings, Box<dyn Error>> {
+) -> Result<VanguardHoldings> {
     let mut header = Vec::new();
     let csv_file = File::open(csv_path)?;
     let mut accounts: HashMap<u32, ShareValues> = HashMap::new();
@@ -1037,15 +1030,20 @@ pub fn parse_csv_download(
         }
     }
 
+    let account_numbers = accounts.keys().cloned().collect::<Vec<u32>>();
+
     // if the brokerage account is input through CLI arguments, pull the data from the accounts
     // hashmap and place the information into a variable which will be input into the
     // VanguardHoldings struct
     let mut brokerage = None;
     if let Some(brokerage_acct) = args.brok_acct_option {
         if let Some(brokerage_holdings) = accounts.get(&brokerage_acct) {
-            brokerage = Some(brokerage_holdings.clone())
+            brokerage = Some(*brokerage_holdings)
         } else {
-            return Err(Box::new(AccountNumberError::Brokerage));
+            return Err(anyhow!("{account_type} account number not found within vanguard download file\nInput account: {input:?}\nPossible accounts: {all_accounts:?}\n",
+                               account_type= "Brokerage",
+                               input=brokerage_acct,
+                               all_accounts=account_numbers));
         }
     }
 
@@ -1055,9 +1053,13 @@ pub fn parse_csv_download(
     let mut traditional_ira = None;
     if let Some(traditional_acct) = args.trad_acct_option {
         if let Some(traditional_holdings) = accounts.get(&traditional_acct) {
-            traditional_ira = Some(traditional_holdings.clone())
+            traditional_ira = Some(*traditional_holdings)
         } else {
-            return Err(Box::new(AccountNumberError::TraditionIra));
+            return Err(anyhow!("{account_type} account number not found within vanguard download file\nInput account: {input:?}\nPossible accounts: {all_accounts:?}\n",
+                account_type= "Traditional IRA",
+                input= traditional_acct,
+                all_accounts= account_numbers)
+            );
         }
     }
 
@@ -1067,9 +1069,13 @@ pub fn parse_csv_download(
     let mut roth_ira = None;
     if let Some(roth_acct) = args.roth_acct_option {
         if let Some(roth_holdings) = accounts.get(&roth_acct) {
-            roth_ira = Some(roth_holdings.clone())
+            roth_ira = Some(*roth_holdings)
         } else {
-            return Err(Box::new(AccountNumberError::RothIra));
+            return Err(anyhow!("{account_type:?} account number not found within vanguard download file\nInput account: {input:?}\nPossible accounts: {all_accounts:?}\n",
+                account_type= "Roth IRA",
+                input= roth_acct,
+                all_accounts= account_numbers)
+            );
         }
     }
     Ok(VanguardHoldings {
