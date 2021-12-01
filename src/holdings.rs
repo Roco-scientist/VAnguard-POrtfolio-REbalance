@@ -937,6 +937,7 @@ pub struct VanguardRebalance {
     brokerage: Option<AccountHoldings>,
     traditional_ira: Option<AccountHoldings>,
     roth_ira: Option<AccountHoldings>,
+    retirement_target: Option<ShareValues>
 }
 
 impl VanguardRebalance {
@@ -954,6 +955,7 @@ impl VanguardRebalance {
             brokerage: None,
             traditional_ira: None,
             roth_ira: None,
+            retirement_target: None,
         }
     }
 
@@ -983,6 +985,10 @@ impl VanguardRebalance {
             HoldingType::RothIra => self.roth_ira = Some(acct_holding),
         }
     }
+
+    pub fn add_retirement_target(&mut self, retirement_target: ShareValues) {
+        self.retirement_target = Some(retirement_target);
+    }
 }
 
 impl Default for VanguardRebalance {
@@ -994,12 +1000,18 @@ impl Default for VanguardRebalance {
 impl fmt::Display for VanguardRebalance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut out_string = String::new();
+        if let Some(retirement_target_values) = &self.retirement_target {
+            out_string.push_str(&format!(
+                    "Retirement target:\n{}\n\n",
+                    retirement_target_values
+                                        ))
+        }
         if let Some(traditional_ira_account) = &self.traditional_ira {
             out_string.push_str(&format!(
                 "Traditional IRA:\n{}\n\n",
                 traditional_ira_account
             ))
-        }
+        } 
         if let Some(roth_ira_account) = &self.roth_ira {
             out_string.push_str(&format!("Roth IRA:\n{}\n\n", roth_ira_account))
         }
