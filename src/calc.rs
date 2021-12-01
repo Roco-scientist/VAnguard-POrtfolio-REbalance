@@ -16,7 +16,7 @@ pub fn to_buy(
     args: crate::arguments::Args,
 ) -> crate::holdings::VanguardRebalance {
     let mut rebalance = crate::holdings::VanguardRebalance::new();
-    let (traditional_ira_account_option, roth_ira_account_option) = retirement_calc(
+    let (traditional_ira_account_option, roth_ira_account_option, target_overall_retirement_option) = retirement_calc(
         &vanguard_holdings,
         args.roth_add,
         args.traditional_add,
@@ -45,6 +45,9 @@ pub fn to_buy(
             crate::holdings::HoldingType::Brokerage,
         )
     }
+    if let Some(target_overall_retirement) = target_overall_retirement_option {
+        rebalance.add_retirement_target(target_overall_retirement);
+    }
     rebalance
 }
 
@@ -71,10 +74,14 @@ fn brokerage_calc(
         0.0,
         0.0,
     );
-    let difference = target_holdings.subtract(&brokerage);
-    let stock_purchase = difference.divide(&quotes);
+    let difference = target_holdings - brokerage;
+    let stock_purchase = difference / quotes;
     crate::holdings::AccountHoldings::new(brokerage, target_holdings, stock_purchase)
 }
+
+type TraditionalIraAccount = crate::holdings::AccountHoldings;
+type RothIraAccount = crate::holdings::AccountHoldings;
+type TargetOverallRetirement = crate::holdings::ShareValues;
 
 /// retirement_calc calculates the amount of stocks and bonds that should be bought/sold within the
 /// retirement account in order to rebalance.  If there are both a roth and traditional IRA
@@ -88,15 +95,13 @@ fn retirement_calc(
     percent_stock: f32,
     percent_bond: f32,
 ) -> (
-    Option<crate::holdings::AccountHoldings>,
-    Option<crate::holdings::AccountHoldings>,
+    Option<TraditionalIraAccount>,
+    Option<RothIraAccount>,
+    Option<TargetOverallRetirement>
 ) {
-    println!(
-        "DESCRIPTIONS:\n{}\n",
-        crate::holdings::all_stock_descriptions()
-    );
     let mut traditional_ira_account_option = None;
     let mut roth_ira_account_option = None;
+    let mut target_overall_retirement_option = None;
     if let Some(mut roth_holdings) = vanguard_holdings.roth_ira_holdings() {
         roth_holdings.add_stock_value(
             crate::holdings::StockSymbol::VMFXX,
@@ -110,7 +115,7 @@ fn retirement_calc(
                 traditional_holdings.stock_value(crate::holdings::StockSymbol::VMFXX)
                     + added_value_trad,
             );
-            let overall_target = crate::holdings::ShareValues::new_target(
+            let target_overall_retirement = crate::holdings::ShareValues::new_target(
                 roth_holdings.total_value() + traditional_holdings.total_value(),
                 percent_bond,
                 percent_stock,
@@ -119,11 +124,12 @@ fn retirement_calc(
                 0.0,
                 0.0,
             );
-            println!("Retirement target:\n{}\n", overall_target);
+
+            target_overall_retirement_option = Some(target_overall_retirement.clone());
             let mut roth_total = roth_holdings.total_value();
             let mut roth_target = crate::holdings::ShareValues::new();
             for stock_symbol in HIGH_TO_LOW_RISK {
-                let value = overall_target
+                let value = target_overall_retirement
                     .stock_value(stock_symbol.clone())
                     .min(roth_total);
                 roth_total -= value;
@@ -140,17 +146,17 @@ fn retirement_calc(
                 roth_target,
                 roth_holdings
             );
-            let roth_difference = roth_target.subtract(&roth_holdings);
-            let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());
+            let roth_difference = roth_target - roth_holdings;
+            let roth_purchase = roth_difference / vanguard_holdings.stock_quotes();
             let roth_account = crate::holdings::AccountHoldings::new(
                 roth_holdings,
-                roth_target.clone(),
+                roth_target,
                 roth_purchase,
             );
-            let traditional_target = overall_target.subtract(&roth_target);
-            let traditional_difference = traditional_target.subtract(&traditional_holdings);
+            let traditional_target = target_overall_retirement - roth_target;
+            let traditional_difference = traditional_target - traditional_holdings;
             let traditional_purchase =
-                traditional_difference.divide(&vanguard_holdings.stock_quotes());
+                traditional_difference / vanguard_holdings.stock_quotes();
             let traditional_account = crate::holdings::AccountHoldings::new(
                 traditional_holdings,
                 traditional_target,
@@ -168,8 +174,8 @@ fn retirement_calc(
                 0.0,
                 0.0,
             );
-            let roth_difference = roth_target.subtract(&roth_holdings);
-            let roth_purchase = roth_difference.divide(&vanguard_holdings.stock_quotes());
+            let roth_difference = roth_target - roth_holdings;
+            let roth_purchase = roth_difference / vanguard_holdings.stock_quotes();
             let roth_account =
                 crate::holdings::AccountHoldings::new(roth_holdings, roth_target, roth_purchase);
             roth_ira_account_option = Some(roth_account);
@@ -189,8 +195,8 @@ fn retirement_calc(
             0.0,
             0.0,
         );
-        let traditional_difference = traditional_target.subtract(&traditional_holdings);
-        let traditional_purchase = traditional_difference.divide(&vanguard_holdings.stock_quotes());
+        let traditional_difference = traditional_target - traditional_holdings;
+        let traditional_purchase = traditional_difference / vanguard_holdings.stock_quotes();
         let traditional_account = crate::holdings::AccountHoldings::new(
             traditional_holdings,
             traditional_target,
@@ -198,5 +204,5 @@ fn retirement_calc(
         );
         traditional_ira_account_option = Some(traditional_account)
     }
-    (traditional_ira_account_option, roth_ira_account_option)
+    (traditional_ira_account_option, roth_ira_account_option, target_overall_retirement_option)
 }
