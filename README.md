@@ -12,14 +12,14 @@ Algorithm setup to determine proper spread of Vanguard ETF index funds and adjus
 |VWO   |Emerging markets stock   |Stock|11.111   |
 |BNDX  |Total international bond |Bond |33.333   |
   
-The value depends on overall distribution.  As in, 90% stock and 10% bond, then each percentation
-would be that fraction of the stock vs. bond distribution.  The values above are stored within
+The value depends on overall asset allocation.  As in if the asset allocation is 90% stock and 10% bond, each percentage listed above is
+a fraction of that 90% or 10%. For US large cap stock it the math is 90% * 22.222%.  The values above are stored within
 constants in the holdings source file and can be changed there.  The default stock vs. bond distribution
 is 90 vs 10 for retirement accounts and 60 vs 40 for brokerage investment accounts.  These can be changed 
 through command line arguments.  
   
-The algorithm is also setup to shift the riskiest assets to the roth accounts
-and the less risky assets to the traditional IRA accounts.  This is donw to allow for the most growth to happen
+The algorithm is setup to shift the riskiest assets to the roth account
+and the less risky assets to the traditional IRA account.  This is done to allow for the most growth to happen
 within the account which does not get taxed.  
   
 VTC and BND is included in order to shift money away from government bonds and into AAA corporate bonds.
