@@ -1,5 +1,10 @@
-use crate::holdings::{
-    AccountHoldings, HoldingType, ShareValues, StockSymbol, VanguardHoldings, VanguardRebalance,
+use anyhow::{ensure, Result};
+
+use crate::{
+    arguments::Args,
+    holdings::{
+        AccountHoldings, HoldingType, ShareValues, StockSymbol, VanguardHoldings, VanguardRebalance,
+    },
 };
 
 const HIGH_TO_LOW_RISK: [StockSymbol; 7] = [
@@ -17,8 +22,8 @@ const HIGH_TO_LOW_RISK: [StockSymbol; 7] = [
 pub fn to_buy(
     vanguard_holdings: VanguardHoldings,
     alpaca_holdings: f32,
-    args: crate::arguments::Args,
-) -> VanguardRebalance {
+    args: Args,
+) -> Result<VanguardRebalance> {
     let mut rebalance = VanguardRebalance::new();
     let (traditional_ira_account_option, roth_ira_account_option, target_overall_retirement_option) =
         retirement_calc(
@@ -27,7 +32,7 @@ pub fn to_buy(
             args.traditional_add,
             args.percent_stock_retirement,
             args.percent_bond_retirement,
-        );
+        )?;
     if let Some(traditional_account) = traditional_ira_account_option {
         rebalance.add_account_holdings(traditional_account, HoldingType::TraditionalIra)
     }
@@ -50,7 +55,7 @@ pub fn to_buy(
     if let Some(target_overall_retirement) = target_overall_retirement_option {
         rebalance.add_retirement_target(target_overall_retirement);
     }
-    rebalance
+    Ok(rebalance)
 }
 
 /// brokerage_calc calculates the amount of stocks and bonds that should be bought/sold within the
@@ -96,11 +101,11 @@ fn retirement_calc(
     added_value_trad: f32,
     percent_stock: f32,
     percent_bond: f32,
-) -> (
+) -> Result<(
     Option<TraditionalIraAccount>,
     Option<RothIraAccount>,
     Option<TargetOverallRetirement>,
-) {
+)> {
     let mut traditional_ira_account_option = None;
     let mut roth_ira_account_option = None;
     let mut target_overall_retirement_option = None;
@@ -139,8 +144,8 @@ fn retirement_calc(
                     break;
                 }
             }
-            assert_eq!(roth_total, 0.0, "Unexpected leftover roth cash");
-            assert!(
+            ensure!(roth_total == 0.0, "Unexpected leftover roth cash");
+            ensure!(
                 roth_target.total_value() > (0.99 * roth_holdings.total_value())
                     && roth_target.total_value() < (1.01 * roth_holdings.total_value()),
                 "Roth target and total do not match\n\nRoth target:\n{}\n\nRoth:\n{}",
@@ -198,9 +203,9 @@ fn retirement_calc(
         );
         traditional_ira_account_option = Some(traditional_account)
     }
-    (
+    Ok((
         traditional_ira_account_option,
         roth_ira_account_option,
         target_overall_retirement_option,
-    )
+    ))
 }
