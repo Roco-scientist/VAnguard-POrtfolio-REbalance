@@ -814,7 +814,7 @@ impl AccountHoldings {
     ///
     /// let brokerage_current = holdings::ShareValues::new();
     /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
-    /// let purchase_sales = brokerage_current.divide(&quotes);
+    /// let purchase_sales = brokerage_current / quotes;
     ///
     /// let brokerage_account = holdings::AccountHoldings::new(brokerage_current, brokerage_target, purchase_sales);
     /// ```
@@ -930,7 +930,7 @@ impl VanguardRebalance {
     ///
     /// let brokerage_current = holdings::ShareValues::new();
     /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
-    /// let purchase_sales = brokerage_current.divide(&quotes);
+    /// let purchase_sales = brokerage_current / quotes;
     ///
     /// let brokerage_account = holdings::AccountHoldings::new(brokerage_current, brokerage_target, purchase_sales);
     ///

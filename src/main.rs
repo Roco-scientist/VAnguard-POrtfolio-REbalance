@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
     }
     let vanguard_holdings = vapore::holdings::parse_csv_download(&args.csv_path, args.clone())?;
     //    .unwrap_or_else(|err| panic!("Holdings error: {}", err));
-    let rebalance = vapore::calc::to_buy(vanguard_holdings, additional_us_stock, args.clone());
+    let rebalance = vapore::calc::to_buy(vanguard_holdings, additional_us_stock, args.clone())?;
     println!(
         "DESCRIPTIONS:\n{}\n\n{}",
         vapore::holdings::all_stock_descriptions(),
