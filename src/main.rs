@@ -6,20 +6,17 @@ use vapore::arguments;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = arguments::Args::new();
+    let mut args = arguments::Args::new();
     let key_id = std::env::var("APCA_API_KEY_ID").unwrap_or_else(|_| String::new());
     let key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_else(|_| String::new());
-    let additional_us_stock: f32;
     if !key_id.is_empty() && !key.is_empty() {
         let alpaca = Alpaca::live(&key_id, &key).await?;
         let account = Account::get(&alpaca).await?;
-        additional_us_stock = account.equity as f32;
-    } else {
-        additional_us_stock = 0.0
+        args.brokerage_us_stock_add += account.equity as f32;
     }
     let vanguard_holdings = vapore::holdings::parse_csv_download(&args.csv_path, args.clone())?;
     //    .unwrap_or_else(|err| panic!("Holdings error: {}", err));
-    let rebalance = vapore::calc::to_buy(vanguard_holdings, additional_us_stock, args.clone())?;
+    let rebalance = vapore::calc::to_buy(vanguard_holdings, args.clone())?;
     println!(
         "DESCRIPTIONS:\n{}\n\n{}",
         vapore::holdings::all_stock_descriptions(),

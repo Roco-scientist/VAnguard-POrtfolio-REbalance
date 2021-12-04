@@ -309,6 +309,8 @@ pub struct ShareValues {
     vtc: f32,
     vv: f32,
     vmfxx: f32,
+    outside_bond: f32,
+    outside_stock: f32,
 }
 
 impl ShareValues {
@@ -332,6 +334,8 @@ impl ShareValues {
             vtc: 0.0,
             vv: 0.0,
             vmfxx: 0.0,
+            outside_bond: 0.0,
+            outside_stock: 0.0,
         }
     }
     /// new_quote creates a new ShareValues struct where all values are set to 1.  This is used for
@@ -357,6 +361,8 @@ impl ShareValues {
             vtc: 1.0,
             vv: 1.0,
             vmfxx: 1.0,
+            outside_bond: 1.0,
+            outside_stock: 1.0,
         }
     }
 
@@ -383,8 +389,8 @@ impl ShareValues {
         percent_stock: f32,
         other_us_stock_value: f32,
         other_us_bond_value: f32,
-        other_int_bond_value: f32,
         other_int_stock_value: f32,
+        other_int_bond_value: f32,
     ) -> Self {
         // Check to make sure all values add up to 1, ie 100%
         let total_percent = INT_TOTAL * percent_stock / 100.0
@@ -433,6 +439,8 @@ impl ShareValues {
             vtc: vtc_value,
             vv: vv_value,
             vmfxx: 0.0,
+            outside_bond: other_int_bond_value + other_us_bond_value,
+            outside_stock: other_us_stock_value + other_int_stock_value,
         }
     }
 
@@ -519,6 +527,26 @@ impl ShareValues {
         }
     }
 
+    /// Adds other stock value that is not included within the vanguard account.  This is used for
+    /// calculating current stock/bond ratios
+    pub fn add_outside_stock_value(&mut self, stock_value: f32) {
+        self.outside_stock = stock_value
+    }
+
+    pub fn outside_stock_value(&self) -> f32 {
+        self.outside_stock
+    }
+
+    /// Adds other bond value that is not included within the vanguard account.  This is used for
+    /// calculating current stock/bond ratios
+    pub fn add_outside_bond_value(&mut self, bond_value: f32) {
+        self.outside_bond = bond_value
+    }
+
+    pub fn outside_bond_value(&self) -> f32 {
+        self.outside_bond
+    }
+
     /// stock_value retrieves the stored stock value within the ShareValues struct
     ///
     /// # Panic
@@ -582,22 +610,10 @@ impl ShareValues {
 
     /// percent_stock_bond calculates the percent of stock and bond within the ShareValues.  This
     /// should only be used when the struct contains dollar value amounts for the stock values.
-    pub fn percent_stock_bond(
-        &self,
-        additional_stock: Option<f32>,
-        additional_bond: Option<f32>,
-    ) -> (f32, f32) {
-        let mut total_bond = self.bndx + self.bnd + self.vtc;
-        let mut total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus;
-        let mut total = self.total_value() - self.vmfxx;
-        if let Some(add_stock) = additional_stock {
-            total_stock += add_stock;
-            total += add_stock;
-        }
-        if let Some(add_bond) = additional_bond {
-            total_bond += add_bond;
-            total += add_bond;
-        }
+    pub fn percent_stock_bond(&self) -> (f32, f32) {
+        let total_bond = self.bndx + self.bnd + self.vtc + self.outside_bond;
+        let total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus + self.outside_stock;
+        let total = self.total_value() - self.vmfxx + self.outside_bond + self.outside_stock;
         (total_stock / total * 100.0, total_bond / total * 100.0)
     }
 }
@@ -622,6 +638,8 @@ impl Add for ShareValues {
             vtc: self.vtc + other.vtc,
             vv: self.vv + other.vv,
             vmfxx: self.vmfxx + other.vmfxx,
+            outside_bond: self.outside_bond + other.outside_bond,
+            outside_stock: self.outside_stock + other.outside_stock,
         }
     }
 }
@@ -640,6 +658,8 @@ impl Sub for ShareValues {
             vtc: self.vtc - other.vtc,
             vv: self.vv - other.vv,
             vmfxx: self.vmfxx - other.vmfxx,
+            outside_bond: self.outside_bond - other.outside_bond,
+            outside_stock: self.outside_stock - other.outside_stock,
         }
     }
 }
@@ -658,31 +678,35 @@ impl Div for ShareValues {
             vtc: self.vtc / other.vtc,
             vv: self.vv / other.vv,
             vmfxx: self.vmfxx / other.vmfxx,
+            outside_bond: self.outside_bond / other.outside_bond,
+            outside_stock: self.outside_stock / other.outside_stock,
         }
     }
 }
 
 impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (stock, bond) = self.percent_stock_bond(None, None);
+        let (stock, bond) = self.percent_stock_bond();
         write!(
             f,
             "\
-            Symbol     Value\n\
-            --------------------\n\
-            VV         {:.2}\n\
-            VO         {:.2}\n\
-            VB         {:.2}\n\
-            VTC        {:.2}\n\
-            BND        {:.2}\n\
-            VXUS       {:.2}\n\
-            VWO        {:.2}\n\
-            BNDX       {:.2}\n\
-            --------------------\n\
-            Cash       {:.2}\n\
-            Total      {:.2}\n\
-            Stock:Bond {:.1}:{:.1}\n\
-            ====================
+            Symbol         Value\n\
+            ------------------------\n\
+            VV             {:.2}\n\
+            VO             {:.2}\n\
+            VB             {:.2}\n\
+            VTC            {:.2}\n\
+            BND            {:.2}\n\
+            VXUS           {:.2}\n\
+            VWO            {:.2}\n\
+            BNDX           {:.2}\n\
+            ------------------------\n\
+            Cash           {:.2}\n\
+            Total          {:.2}\n\
+            Outside stock  {:.2}\n\
+            Outside bond   {:.2}\n\
+            Stock:Bond     {:.1}:{:.1}\n\
+            ========================
             ",
             self.vv,
             self.vo,
@@ -694,6 +718,8 @@ impl fmt::Display for ShareValues {
             self.bndx,
             self.vmfxx,
             self.total_value(),
+            self.outside_stock,
+            self.outside_bond,
             stock,
             bond
         )
@@ -833,10 +859,10 @@ impl AccountHoldings {
 
 impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (current_stock, current_bond) = self.current.percent_stock_bond(None, None);
+        let (current_stock, current_bond) = self.current.percent_stock_bond();
         let current_stock_bond = format!("{:.1}:{:.1}", current_stock, current_bond);
 
-        let (target_stock, target_bond) = self.target.percent_stock_bond(None, None);
+        let (target_stock, target_bond) = self.target.percent_stock_bond();
         let target_stock_bond = format!("{:.1}:{:.1}", target_stock, target_bond);
 
         write!(
@@ -854,6 +880,8 @@ impl fmt::Display for AccountHoldings {
             --------------------------------------------------\n\
             Cash                    ${:<15.2}${:<15.2}\n\
             Total                   ${:<15.2}\n\
+            Outside stock           ${:<15.2}${:<15.2}\n\
+            Outside bond            ${:<15.2}${:<15.2}\n\
             Stock:Bond              {:<16}{:<15}\n\
             ==================================================",
             self.sale_purchases_needed.vv,
@@ -883,6 +911,10 @@ impl fmt::Display for AccountHoldings {
             self.current.vmfxx,
             self.target.vmfxx,
             self.current.total_value(),
+            self.current.outside_stock,
+            self.target.outside_stock,
+            self.current.outside_bond,
+            self.target.outside_bond,
             current_stock_bond,
             target_stock_bond,
         )
