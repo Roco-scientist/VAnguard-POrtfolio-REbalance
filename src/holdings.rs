@@ -37,6 +37,7 @@ lazy_static! {
         m.insert(StockSymbol::VXUS, "Total international stock");
         m.insert(StockSymbol::VWO, "Emerging markets stock");
         m.insert(StockSymbol::BNDX, "Total international bond");
+        m.insert(StockSymbol::VTIP, "Inflation protected securities");
         m
     };
 }
@@ -48,6 +49,7 @@ lazy_static! {
 pub enum StockSymbol {
     VXUS,
     BNDX,
+    VTIP,
     BND,
     VWO,
     VO,
@@ -74,6 +76,7 @@ impl StockSymbol {
         match symbol {
             "VXUS" => StockSymbol::VXUS,
             "BNDX" => StockSymbol::BNDX,
+            "VTIP" => StockSymbol::VTIP,
             "BND" => StockSymbol::BND,
             "VWO" => StockSymbol::VWO,
             "VO" => StockSymbol::VO,
@@ -135,6 +138,7 @@ pub fn all_stock_descriptions() -> String {
         StockSymbol::VXUS,
         StockSymbol::VWO,
         StockSymbol::BNDX,
+        StockSymbol::VTIP,
     ] {
         descriptions.push_str(&symbol.description());
         descriptions.push('\n')
@@ -308,6 +312,7 @@ pub struct ShareValues {
     vb: f32,
     vtc: f32,
     vv: f32,
+    vtip: f32,
     vmfxx: f32,
     outside_bond: f32,
     outside_stock: f32,
@@ -327,6 +332,7 @@ impl ShareValues {
         ShareValues {
             vxus: 0.0,
             bndx: 0.0,
+            vtip: 0.0,
             bnd: 0.0,
             vwo: 0.0,
             vo: 0.0,
@@ -354,6 +360,7 @@ impl ShareValues {
         ShareValues {
             vxus: 1.0,
             bndx: 1.0,
+            vtip: 1.0,
             bnd: 1.0,
             vwo: 1.0,
             vo: 1.0,
@@ -427,6 +434,7 @@ impl ShareValues {
             - (other_us_bond_value / 2.0);
         let vv_value =
             (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
+        let vtip_value = 0.0;
 
         // set vmfxx, ie cash, target value to 0 and return ShareValues
         ShareValues {
@@ -438,6 +446,7 @@ impl ShareValues {
             vb: vb_value,
             vtc: vtc_value,
             vv: vv_value,
+            vtip: vtip_value,
             vmfxx: 0.0,
             outside_bond: other_int_bond_value + other_us_bond_value,
             outside_stock: other_us_stock_value + other_int_stock_value,
@@ -481,6 +490,7 @@ impl ShareValues {
         match stock_info.symbol {
             StockSymbol::VXUS => self.vxus = value,
             StockSymbol::BNDX => self.bndx = value,
+            StockSymbol::VTIP => self.vtip = value,
             StockSymbol::BND => self.bnd = value,
             StockSymbol::VWO => self.vwo = value,
             StockSymbol::VO => self.vo = value,
@@ -515,6 +525,7 @@ impl ShareValues {
         match stock_symbol {
             StockSymbol::VXUS => self.vxus = value,
             StockSymbol::BNDX => self.bndx = value,
+            StockSymbol::VTIP => self.vtip = value,
             StockSymbol::BND => self.bnd = value,
             StockSymbol::VWO => self.vwo = value,
             StockSymbol::VO => self.vo = value,
@@ -569,6 +580,7 @@ impl ShareValues {
         match stock_symbol {
             StockSymbol::VXUS => self.vxus,
             StockSymbol::BNDX => self.bndx,
+            StockSymbol::VTIP => self.vtip,
             StockSymbol::BND => self.bnd,
             StockSymbol::VWO => self.vwo,
             StockSymbol::VO => self.vo,
@@ -606,6 +618,7 @@ impl ShareValues {
             + self.vtc
             + self.vv
             + self.vmfxx
+            + self.vtip
     }
 
     /// percent_stock_bond calculates the percent of stock and bond within the ShareValues.  This
@@ -631,6 +644,7 @@ impl Add for ShareValues {
         ShareValues {
             vxus: self.vxus + other.vxus,
             bndx: self.bndx + other.bndx,
+            vtip: self.vtip + other.vtip,
             bnd: self.bnd + other.bnd,
             vwo: self.vwo + other.vwo,
             vo: self.vo + other.vo,
@@ -651,6 +665,7 @@ impl Sub for ShareValues {
         ShareValues {
             vxus: self.vxus - other.vxus,
             bndx: self.bndx - other.bndx,
+            vtip: self.vtip - other.vtip,
             bnd: self.bnd - other.bnd,
             vwo: self.vwo - other.vwo,
             vo: self.vo - other.vo,
@@ -671,6 +686,7 @@ impl Div for ShareValues {
         ShareValues {
             vxus: self.vxus / other.vxus,
             bndx: self.bndx / other.bndx,
+            vtip: self.vtip / other.vtip,
             bnd: self.bnd / other.bnd,
             vwo: self.vwo / other.vwo,
             vo: self.vo / other.vo,
@@ -700,6 +716,7 @@ impl fmt::Display for ShareValues {
             VXUS           {:.2}\n\
             VWO            {:.2}\n\
             BNDX           {:.2}\n\
+            VTIP           {:.2}\n\
             ------------------------\n\
             Cash           {:.2}\n\
             Total          {:.2}\n\
@@ -716,6 +733,7 @@ impl fmt::Display for ShareValues {
             self.vxus,
             self.vwo,
             self.bndx,
+            self.vtip,
             self.vmfxx,
             self.total_value(),
             self.outside_stock,
@@ -877,6 +895,7 @@ impl fmt::Display for AccountHoldings {
             VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
             VWO      {:<15.2}${:<15.2}${:<15.2}\n\
             BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
+            VTIP     {:<15.2}${:<15.2}${:<15.2}\n\
             --------------------------------------------------\n\
             Cash                    ${:<15.2}${:<15.2}\n\
             Total                   ${:<15.2}\n\
@@ -908,6 +927,9 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.bndx,
             self.current.bndx,
             self.target.bndx,
+            self.sale_purchases_needed.vtip,
+            self.current.vtip,
+            self.target.vtip,
             self.current.vmfxx,
             self.target.vmfxx,
             self.current.total_value(),
