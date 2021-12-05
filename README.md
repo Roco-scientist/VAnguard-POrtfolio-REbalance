@@ -59,9 +59,9 @@ Download transaction file from within the vanguard account
 `vapore --brokerage-acct <#> --roth-acct <#> --trad-acct <#> <vanguard_csv>`  
   
 If money is being added to any of the accounts, add one of the following flags along with the amount:
-- --add-brokerage <#>
-- --add-traditional <#>
-- --add-roth <#>  
+- --add-cash-brokerage <#>
+- --add-cash-traditional <#>
+- --add-cash-roth <#>  
   
 Where the latter two are for IRA additions.  
 
