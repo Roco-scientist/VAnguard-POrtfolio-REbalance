@@ -28,10 +28,10 @@ pub struct Allocations {
 impl Allocations {
     /// Default asset allocations at 60% stock and 40% bond
     pub fn new() -> Self {
-        Allocations{
+        Allocations {
             total_stock: 60.0,
             total_bond: 40.0,
-            total_inflation_protected: 0.0
+            total_inflation_protected: 0.0,
         }
     }
     /// Calculates the stock, bond, and inflation protected percentages based on Vanguard target
@@ -105,8 +105,10 @@ impl Allocations {
     }
 }
 
-impl Default for Allocations{
-    fn default() -> Self {Self::new()}
+impl Default for Allocations {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl fmt::Display for Allocations {

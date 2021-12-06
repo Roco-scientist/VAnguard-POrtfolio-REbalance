@@ -1,3 +1,4 @@
+use crate::asset::SubAllocations;
 use anyhow::{anyhow, Result};
 use std::{
     collections::HashMap,
@@ -7,8 +8,6 @@ use std::{
     ops::{Add, Div, Sub},
     vec::Vec,
 };
-use crate::asset::SubAllocations;
-
 
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
 // display
@@ -386,7 +385,6 @@ impl ShareValues {
         other_int_stock_value: f32,
         other_int_bond_value: f32,
     ) -> Self {
-
         // get total value
         let total_value = total_vanguard_value
             + other_us_stock_value
@@ -395,19 +393,19 @@ impl ShareValues {
             + other_int_stock_value;
 
         // Calculate values for each stock
-        let vxus_value =
-            (total_value * sub_allocations.int_tot_stock / 100.0) - (other_int_stock_value * 2.0 / 3.0);
-        let bndx_value =
-            (total_value * sub_allocations.int_bond / 100.0) - other_int_bond_value;
-        let bnd_value = (total_value * sub_allocations.us_tot_bond / 100.0) - (other_us_bond_value / 2.0);
-        let vwo_value =
-            (total_value * sub_allocations.int_emerging_stock / 100.0) - (other_int_stock_value / 3.0);
+        let vxus_value = (total_value * sub_allocations.int_tot_stock / 100.0)
+            - (other_int_stock_value * 2.0 / 3.0);
+        let bndx_value = (total_value * sub_allocations.int_bond / 100.0) - other_int_bond_value;
+        let bnd_value =
+            (total_value * sub_allocations.us_tot_bond / 100.0) - (other_us_bond_value / 2.0);
+        let vwo_value = (total_value * sub_allocations.int_emerging_stock / 100.0)
+            - (other_int_stock_value / 3.0);
         let vo_value =
             (total_value * sub_allocations.us_stock_mid / 100.0) - (other_us_stock_value / 3.0);
         let vb_value =
             (total_value * sub_allocations.us_stock_small / 100.0) - (other_us_stock_value / 3.0);
-        let vtc_value = (total_value * sub_allocations.us_corp_bond / 100.0)
-            - (other_us_bond_value / 2.0);
+        let vtc_value =
+            (total_value * sub_allocations.us_corp_bond / 100.0) - (other_us_bond_value / 2.0);
         let vv_value =
             (total_value * sub_allocations.us_stock_large / 100.0) - (other_us_stock_value / 3.0);
         let vtip_value = total_value * sub_allocations.inflation_protected / 100.0;

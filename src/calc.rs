@@ -33,11 +33,7 @@ pub fn to_buy(vanguard_holdings: VanguardHoldings, args: Args) -> Result<Vanguar
     }
     if let Some(brokerage_holdings) = vanguard_holdings.brokerage_holdings() {
         rebalance.add_account_holdings(
-            brokerage_calc(
-                vanguard_holdings.stock_quotes(),
-                brokerage_holdings,
-                args,
-            )?,
+            brokerage_calc(vanguard_holdings.stock_quotes(), brokerage_holdings, args)?,
             HoldingType::Brokerage,
         )
     }
@@ -49,14 +45,22 @@ pub fn to_buy(vanguard_holdings: VanguardHoldings, args: Args) -> Result<Vanguar
 
 /// brokerage_calc calculates the amount of stocks and bonds that should be bought/sold within the
 /// brokerage account in order to rebalance
-fn brokerage_calc(quotes: ShareValues, mut brokerage: ShareValues, args: Args) -> Result<AccountHoldings> {
+fn brokerage_calc(
+    quotes: ShareValues,
+    mut brokerage: ShareValues,
+    args: Args,
+) -> Result<AccountHoldings> {
     brokerage.add_stock_value(
         StockSymbol::VMFXX,
         brokerage.stock_value(StockSymbol::VMFXX) + args.brokerage_cash_add,
     );
     brokerage.add_outside_stock_value(args.brokerage_us_stock_add + args.brokerage_int_stock_add);
     brokerage.add_outside_bond_value(args.brokerage_us_bond_add + args.brokerage_int_bond_add);
-    let asset_allocations = Allocations::custom(args.percent_stock_brokerage, args.percent_bond_brokerage, 0.0)?;
+    let asset_allocations = Allocations::custom(
+        args.percent_stock_brokerage,
+        args.percent_bond_brokerage,
+        0.0,
+    )?;
     let sub_allocations = SubAllocations::new_custom(asset_allocations)?;
     let target_holdings = ShareValues::new_target(
         sub_allocations,
@@ -68,7 +72,11 @@ fn brokerage_calc(quotes: ShareValues, mut brokerage: ShareValues, args: Args) -
     );
     let difference = target_holdings - brokerage;
     let stock_purchase = difference / quotes;
-    Ok(AccountHoldings::new(brokerage, target_holdings, stock_purchase))
+    Ok(AccountHoldings::new(
+        brokerage,
+        target_holdings,
+        stock_purchase,
+    ))
 }
 
 type TraditionalIraAccount = AccountHoldings;
@@ -92,26 +100,26 @@ fn retirement_calc(
     let mut roth_ira_account_option = None;
     let mut target_overall_retirement_option = None;
 
-    let allocations;
+    let mut allocations;
 
     if let Some(retirement_year) = args.retirement_year_option {
         allocations = Allocations::retirement(retirement_year)?;
-    }else if let Some(stock_percent) = args.percent_stock_retirement_option {
+    }
+    if let Some(stock_percent) = args.percent_stock_retirement_option {
         let bond_percent;
-        if let Some(input_bond_percent) = args.percent_bond_retirement_option{
+        if let Some(input_bond_percent) = args.percent_bond_retirement_option {
             bond_percent = input_bond_percent;
-        }else{
+        } else {
             bond_percent = 100.0 - stock_percent;
         }
         allocations = Allocations::custom(stock_percent, bond_percent, 0.0)?;
-    }else if let Some(bond_percent) = args.percent_bond_retirement_option{
+    } else if let Some(bond_percent) = args.percent_bond_retirement_option {
         let stock_percent = 100.0 - bond_percent;
         allocations = Allocations::custom(stock_percent, bond_percent, 0.0)?;
-    }else{
+    } else {
         allocations = Allocations::new();
     };
     let sub_allocations = SubAllocations::new_custom(allocations)?;
-
 
     if let Some(mut roth_holdings) = vanguard_holdings.roth_ira_holdings() {
         roth_holdings.add_stock_value(
