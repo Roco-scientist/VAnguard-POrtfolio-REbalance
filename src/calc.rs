@@ -36,7 +36,7 @@ pub fn to_buy(vanguard_holdings: VanguardHoldings, args: Args) -> Result<Vanguar
             brokerage_calc(
                 vanguard_holdings.stock_quotes(),
                 brokerage_holdings,
-                args.clone(),
+                args,
             )?,
             HoldingType::Brokerage,
         )
