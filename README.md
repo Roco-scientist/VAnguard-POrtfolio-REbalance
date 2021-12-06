@@ -56,7 +56,7 @@ Download transaction file from within the vanguard account
 9. Move the downloaded CSV file to where you want to run this program
 
 ### Run
-`vapore --brokerage-acct <#> --roth-acct <#> --trad-acct <#> <vanguard_csv>`  
+`vapore --brokerage-acct <#> --roth-acct <#> --trad-acct <#> --retirement-year 2055 <vanguard_csv>`  
   
 If money is being added to any of the accounts, add one of the following flags along with the amount:
 - --add-cash-brokerage <#>
