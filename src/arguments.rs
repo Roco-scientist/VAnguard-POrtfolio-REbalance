@@ -8,10 +8,11 @@ use clap::{crate_version, App, Arg};
 #[derive(Clone)]
 pub struct Args {
     pub csv_path: String, // Path of the downloaded vanguard transactions file
+    pub retirement_year_option: Option<i32>,
     pub percent_stock_brokerage: f32, // Percent of stocks for brokerage account
     pub percent_bond_brokerage: f32, // Percent of bonds for brokerage account
-    pub percent_stock_retirement: f32, // Percent of stock for retirement account
-    pub percent_bond_retirement: f32, // Percent bond for retirement account
+    pub percent_stock_retirement_option: Option<f32>, // Percent of stock for retirement account
+    pub percent_bond_retirement_option: Option<f32>, // Percent bond for retirement account
     pub brokerage_cash_add: f32, // Amount of cash added to brokerage account
     pub brokerage_us_stock_add: f32,
     pub brokerage_us_bond_add: f32,
@@ -45,6 +46,15 @@ impl Args {
                     .help("CSV download file from Vanguard with holdings"),
             )
             .arg(
+                Arg::with_name("retirement-year")
+                    .long("retirement-year")
+                    .short("Y")
+                    .takes_value(true)
+                    .required_unless_one(&["percent-bond-retirement", "percent-stock-retirement"])
+                    .conflicts_with_all(&["percent-bond-retirement", "percent-stock-retirement"])
+                    .help("Retirment year in the format of YYYY"),
+            )
+            .arg(
                 Arg::with_name("percent-bond-brokerage")
                     .long("bond-percent-brokerage")
                     .takes_value(true)
@@ -62,14 +72,16 @@ impl Args {
                 Arg::with_name("percent-bond-retirement")
                     .long("bond-percent-retirement")
                     .takes_value(true)
-                    .default_value("10")
+                    .required_unless_one(&["retirement-year", "percent-stock-retirement"])
+                    .conflicts_with("retirement-year")
                     .help("Percentage to allocate in bonds in the retirement account"),
             )
             .arg(
                 Arg::with_name("percent-stock-retirement")
                     .long("stock-percent-retirement")
                     .takes_value(true)
-                    .default_value("90")
+                    .required_unless_one(&["percent-bond-retirement", "retirement-year"])
+                    .conflicts_with("retirement-year")
                     .help("Percentage to allocate in stocks in the retirement account"),
             )
             .arg(
@@ -212,7 +224,9 @@ impl Args {
                     .help("Output to text file in current directory"),
             )
             .get_matches();
+
         let csv_path = args.value_of("Vanguard-Download").unwrap().to_string();
+
         let percent_stock_brokerage = args
             .value_of("percent-stock-brokerage")
             .unwrap()
@@ -223,11 +237,6 @@ impl Args {
             .unwrap()
             .parse::<f32>()
             .unwrap();
-        assert_eq!(
-            percent_stock_brokerage + percent_bond_brokerage,
-            100.0,
-            "Brokerage stock and bond percentage does not add up to 100"
-        );
         let brokerage_cash_add = args
             .value_of("add-cash-brokerage")
             .unwrap()
@@ -253,6 +262,7 @@ impl Args {
             .unwrap()
             .parse::<f32>()
             .unwrap();
+
         let traditional_cash_add = args
             .value_of("add-cash-traditional")
             .unwrap()
@@ -278,6 +288,7 @@ impl Args {
             .unwrap()
             .parse::<f32>()
             .unwrap();
+
         let roth_cash_add = args
             .value_of("add-cash-roth")
             .unwrap()
@@ -303,21 +314,20 @@ impl Args {
             .unwrap()
             .parse::<f32>()
             .unwrap();
-        let percent_stock_retirement = args
-            .value_of("percent-stock-retirement")
-            .unwrap()
-            .parse::<f32>()
-            .unwrap();
-        let percent_bond_retirement = args
-            .value_of("percent-bond-retirement")
-            .unwrap()
-            .parse::<f32>()
-            .unwrap();
-        assert_eq!(
-            percent_stock_retirement + percent_bond_retirement,
-            100.0,
-            "Retirement stock and bond percentage does not add up to 100"
-        );
+
+        let mut retirement_year_option = None;
+        if let Some(retirement_year) = args.value_of("retirement-year") {
+            retirement_year_option = Some(retirement_year.parse::<i32>().unwrap())
+        }
+        let mut percent_stock_retirement_option = None;
+        if let Some(percent_stock_retirement) = args.value_of("percent-stock-retirement") {
+            percent_stock_retirement_option = Some(percent_stock_retirement.parse::<f32>().unwrap())
+        }
+        let mut percent_bond_retirement_option = None;
+        if let Some(percent_bond_retirement) = args.value_of("percent-bond-retirement") {
+            percent_bond_retirement_option = Some(percent_bond_retirement.parse::<f32>().unwrap())
+        }
+
         let mut brok_acct_option = None;
         if let Some(brok_acct_str) = args.value_of("acct-num-b") {
             brok_acct_option = Some(brok_acct_str.parse::<u32>().unwrap())
@@ -333,10 +343,11 @@ impl Args {
         let output = args.is_present("output");
         Args {
             csv_path,
+            retirement_year_option,
             percent_stock_brokerage,
             percent_bond_brokerage,
-            percent_stock_retirement,
-            percent_bond_retirement,
+            percent_stock_retirement_option,
+            percent_bond_retirement_option,
             brokerage_cash_add,
             brokerage_us_stock_add,
             brokerage_us_bond_add,

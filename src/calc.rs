@@ -2,12 +2,13 @@ use anyhow::{ensure, Result};
 
 use crate::{
     arguments::Args,
+    asset::{Allocations, SubAllocations},
     holdings::{
         AccountHoldings, HoldingType, ShareValues, StockSymbol, VanguardHoldings, VanguardRebalance,
     },
 };
 
-const HIGH_TO_LOW_RISK: [StockSymbol; 7] = [
+const HIGH_TO_LOW_RISK: [StockSymbol; 8] = [
     StockSymbol::VWO,
     StockSymbol::VXUS,
     StockSymbol::VB,
@@ -15,20 +16,15 @@ const HIGH_TO_LOW_RISK: [StockSymbol; 7] = [
     StockSymbol::VV,
     StockSymbol::BNDX,
     StockSymbol::VTC,
+    StockSymbol::VTIP,
 ];
 
 /// to_buy calculates how much of each stock and bond should be bought and sold to rebalance the
 /// portfolio.
-pub fn to_buy(
-    vanguard_holdings: VanguardHoldings,
-    args: Args,
-) -> Result<VanguardRebalance> {
+pub fn to_buy(vanguard_holdings: VanguardHoldings, args: Args) -> Result<VanguardRebalance> {
     let mut rebalance = VanguardRebalance::new();
     let (traditional_ira_account_option, roth_ira_account_option, target_overall_retirement_option) =
-        retirement_calc(
-            &vanguard_holdings,
-            args.clone(),
-        )?;
+        retirement_calc(&vanguard_holdings, args.clone())?;
     if let Some(traditional_account) = traditional_ira_account_option {
         rebalance.add_account_holdings(traditional_account, HoldingType::TraditionalIra)
     }
@@ -41,7 +37,7 @@ pub fn to_buy(
                 vanguard_holdings.stock_quotes(),
                 brokerage_holdings,
                 args.clone(),
-            ),
+            )?,
             HoldingType::Brokerage,
         )
     }
@@ -53,21 +49,18 @@ pub fn to_buy(
 
 /// brokerage_calc calculates the amount of stocks and bonds that should be bought/sold within the
 /// brokerage account in order to rebalance
-fn brokerage_calc(
-    quotes: ShareValues,
-    mut brokerage: ShareValues,
-    args: Args,
-) -> AccountHoldings {
+fn brokerage_calc(quotes: ShareValues, mut brokerage: ShareValues, args: Args) -> Result<AccountHoldings> {
     brokerage.add_stock_value(
         StockSymbol::VMFXX,
         brokerage.stock_value(StockSymbol::VMFXX) + args.brokerage_cash_add,
     );
     brokerage.add_outside_stock_value(args.brokerage_us_stock_add + args.brokerage_int_stock_add);
     brokerage.add_outside_bond_value(args.brokerage_us_bond_add + args.brokerage_int_bond_add);
+    let asset_allocations = Allocations::custom(args.percent_stock_brokerage, args.percent_bond_brokerage, 0.0)?;
+    let sub_allocations = SubAllocations::new_custom(asset_allocations)?;
     let target_holdings = ShareValues::new_target(
+        sub_allocations,
         brokerage.total_value(),
-        args.percent_bond_brokerage,
-        args.percent_stock_brokerage,
         args.brokerage_us_stock_add,
         args.brokerage_us_bond_add,
         args.brokerage_int_stock_add,
@@ -75,7 +68,7 @@ fn brokerage_calc(
     );
     let difference = target_holdings - brokerage;
     let stock_purchase = difference / quotes;
-    AccountHoldings::new(brokerage, target_holdings, stock_purchase)
+    Ok(AccountHoldings::new(brokerage, target_holdings, stock_purchase))
 }
 
 type TraditionalIraAccount = AccountHoldings;
@@ -98,6 +91,28 @@ fn retirement_calc(
     let mut traditional_ira_account_option = None;
     let mut roth_ira_account_option = None;
     let mut target_overall_retirement_option = None;
+
+    let allocations;
+
+    if let Some(retirement_year) = args.retirement_year_option {
+        allocations = Allocations::retirement(retirement_year)?;
+    }else if let Some(stock_percent) = args.percent_stock_retirement_option {
+        let bond_percent;
+        if let Some(input_bond_percent) = args.percent_bond_retirement_option{
+            bond_percent = input_bond_percent;
+        }else{
+            bond_percent = 100.0 - stock_percent;
+        }
+        allocations = Allocations::custom(stock_percent, bond_percent, 0.0)?;
+    }else if let Some(bond_percent) = args.percent_bond_retirement_option{
+        let stock_percent = 100.0 - bond_percent;
+        allocations = Allocations::custom(stock_percent, bond_percent, 0.0)?;
+    }else{
+        allocations = Allocations::new();
+    };
+    let sub_allocations = SubAllocations::new_custom(allocations)?;
+
+
     if let Some(mut roth_holdings) = vanguard_holdings.roth_ira_holdings() {
         roth_holdings.add_stock_value(
             StockSymbol::VMFXX,
@@ -111,9 +126,8 @@ fn retirement_calc(
                 traditional_holdings.stock_value(StockSymbol::VMFXX) + args.traditional_cash_add,
             );
             let target_overall_retirement = ShareValues::new_target(
+                sub_allocations,
                 roth_holdings.total_value() + traditional_holdings.total_value(),
-                args.percent_bond_retirement,
-                args.percent_stock_retirement,
                 args.traditional_us_stock_add + args.roth_us_stock_add,
                 args.traditional_us_bond_add + args.roth_us_bond_add,
                 args.traditional_int_stock_add + args.roth_int_stock_add,
@@ -156,9 +170,8 @@ fn retirement_calc(
             traditional_ira_account_option = Some(traditional_account);
         } else {
             let roth_target = ShareValues::new_target(
+                sub_allocations,
                 roth_holdings.total_value(),
-                args.percent_bond_retirement,
-                args.percent_stock_retirement,
                 args.roth_us_stock_add,
                 args.roth_us_bond_add,
                 args.roth_int_stock_add,
@@ -175,9 +188,8 @@ fn retirement_calc(
             traditional_holdings.stock_value(StockSymbol::VMFXX) + args.traditional_cash_add,
         );
         let traditional_target = ShareValues::new_target(
+            sub_allocations,
             traditional_holdings.total_value(),
-            args.percent_bond_retirement,
-            args.percent_stock_retirement,
             args.traditional_us_stock_add,
             args.traditional_us_bond_add,
             args.traditional_int_stock_add,

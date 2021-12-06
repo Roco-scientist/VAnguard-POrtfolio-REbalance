@@ -7,22 +7,8 @@ use std::{
     ops::{Add, Div, Sub},
     vec::Vec,
 };
+use crate::asset::SubAllocations;
 
-// Constants used for proportion of portfolio contained within each.
-// Split by stocks and bonds
-// US stock as 2/3 of total stock.  Then split by 3 for Large, medium, and small cap
-const US_STOCK_FRACTION: f32 = 2.0 / 3.0;
-const EACH_US_STOCK: f32 = US_STOCK_FRACTION / 3.0;
-// International stock as 1/3 of total stock.  Then 1/3 of that as emerging markets and 2/3 as
-// total international
-const INT_STOCK_FRACTION: f32 = 1.0 / 3.0;
-const INT_EMERGING: f32 = INT_STOCK_FRACTION / 3.0;
-const INT_TOTAL: f32 = INT_STOCK_FRACTION * 2.0 / 3.0;
-// 2/3 of total bonds in US corporate bonds, 1/3 in internation bonds
-const US_BOND_FRACTION: f32 = 2.0 / 3.0;
-const US_CORP_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
-const US_TOT_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
-const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
 
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
 // display
@@ -386,29 +372,20 @@ impl ShareValues {
     /// # Example
     ///
     /// ```
-    /// use vapore::holdings;
+    /// use vapore::{asset, holdings};
     ///
-    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// let sub_allocations = asset::SubAllocations::new().unwrap();
+    ///
+    /// let brokerage_target = holdings::ShareValues::new_target(sub_allocations, 10000.0, 0.0, 0.0, 0.0, 0.0);
     /// ```
     pub fn new_target(
+        sub_allocations: SubAllocations,
         total_vanguard_value: f32,
-        percent_bond: f32,
-        percent_stock: f32,
         other_us_stock_value: f32,
         other_us_bond_value: f32,
         other_int_stock_value: f32,
         other_int_bond_value: f32,
     ) -> Self {
-        // Check to make sure all values add up to 1, ie 100%
-        let total_percent = INT_TOTAL * percent_stock / 100.0
-            + INT_BOND_FRACTION * percent_bond / 100.0
-            + INT_EMERGING * percent_stock / 100.0
-            + EACH_US_STOCK * percent_stock / 100.0
-            + EACH_US_STOCK * percent_stock / 100.0
-            + US_CORP_BOND_FRACTION * percent_bond / 100.0
-            + US_CORP_BOND_FRACTION * percent_bond / 100.0
-            + EACH_US_STOCK * percent_stock / 100.0;
-        assert!((0.999..1.001).contains(&total_percent), "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
 
         // get total value
         let total_value = total_vanguard_value
@@ -419,22 +396,21 @@ impl ShareValues {
 
         // Calculate values for each stock
         let vxus_value =
-            (total_value * INT_TOTAL * percent_stock / 100.0) - (other_int_stock_value * 2.0 / 3.0);
+            (total_value * sub_allocations.int_tot_stock / 100.0) - (other_int_stock_value * 2.0 / 3.0);
         let bndx_value =
-            (total_value * INT_BOND_FRACTION * percent_bond / 100.0) - other_int_bond_value;
-        let bnd_value = (total_value * US_TOT_BOND_FRACTION * percent_bond / 100.0)
-            - (other_us_bond_value / 2.0);
+            (total_value * sub_allocations.int_bond / 100.0) - other_int_bond_value;
+        let bnd_value = (total_value * sub_allocations.us_tot_bond / 100.0) - (other_us_bond_value / 2.0);
         let vwo_value =
-            (total_value * INT_EMERGING * percent_stock / 100.0) - (other_int_stock_value / 3.0);
+            (total_value * sub_allocations.int_emerging_stock / 100.0) - (other_int_stock_value / 3.0);
         let vo_value =
-            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
+            (total_value * sub_allocations.us_stock_mid / 100.0) - (other_us_stock_value / 3.0);
         let vb_value =
-            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
-        let vtc_value = (total_value * US_CORP_BOND_FRACTION * percent_bond / 100.0)
+            (total_value * sub_allocations.us_stock_small / 100.0) - (other_us_stock_value / 3.0);
+        let vtc_value = (total_value * sub_allocations.us_corp_bond / 100.0)
             - (other_us_bond_value / 2.0);
         let vv_value =
-            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
-        let vtip_value = 0.0;
+            (total_value * sub_allocations.us_stock_large / 100.0) - (other_us_stock_value / 3.0);
+        let vtip_value = total_value * sub_allocations.inflation_protected / 100.0;
 
         // set vmfxx, ie cash, target value to 0 and return ShareValues
         ShareValues {
@@ -852,12 +828,14 @@ impl AccountHoldings {
     /// # Example
     ///
     /// ```
-    /// use vapore::holdings;
+    /// use vapore::{asset, holdings};
+    ///
+    /// let sub_allocations = asset::SubAllocations::new().unwrap();
     ///
     /// let quotes = holdings::ShareValues::new_quote();
     ///
     /// let brokerage_current = holdings::ShareValues::new();
-    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// let brokerage_target = holdings::ShareValues::new_target(sub_allocations, 10000.0, 0.0, 0.0, 0.0, 0.0);
     /// let purchase_sales = brokerage_current / quotes;
     ///
     /// let brokerage_account = holdings::AccountHoldings::new(brokerage_current, brokerage_target, purchase_sales);
@@ -978,12 +956,14 @@ impl VanguardRebalance {
     /// # Example
     ///
     /// ```
-    /// use vapore::holdings;
+    /// use vapore::{asset, holdings};
     ///
     /// let quotes = holdings::ShareValues::new_quote();
     ///
+    /// let sub_allocations = asset::SubAllocations::new().unwrap();
+    ///
     /// let brokerage_current = holdings::ShareValues::new();
-    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// let brokerage_target = holdings::ShareValues::new_target(sub_allocations, 10000.0, 0.0, 0.0, 0.0, 0.0);
     /// let purchase_sales = brokerage_current / quotes;
     ///
     /// let brokerage_account = holdings::AccountHoldings::new(brokerage_current, brokerage_target, purchase_sales);
