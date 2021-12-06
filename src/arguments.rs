@@ -50,8 +50,6 @@ impl Args {
                     .long("retirement-year")
                     .short("Y")
                     .takes_value(true)
-                    .required_unless_one(&["percent-bond-retirement", "percent-stock-retirement"])
-                    .conflicts_with_all(&["percent-bond-retirement", "percent-stock-retirement"])
                     .help("Retirment year in the format of YYYY"),
             )
             .arg(
@@ -72,16 +70,12 @@ impl Args {
                 Arg::with_name("percent-bond-retirement")
                     .long("bond-percent-retirement")
                     .takes_value(true)
-                    .required_unless_one(&["retirement-year", "percent-stock-retirement"])
-                    .conflicts_with("retirement-year")
                     .help("Percentage to allocate in bonds in the retirement account"),
             )
             .arg(
                 Arg::with_name("percent-stock-retirement")
                     .long("stock-percent-retirement")
                     .takes_value(true)
-                    .required_unless_one(&["percent-bond-retirement", "retirement-year"])
-                    .conflicts_with("retirement-year")
                     .help("Percentage to allocate in stocks in the retirement account"),
             )
             .arg(
@@ -204,6 +198,7 @@ impl Args {
                 Arg::with_name("acct-num-r")
                     .long("roth-acct")
                     .short("r")
+                    .requires("retirement-year")
                     .takes_value(true)
                     .required_unless_one(&["acct-num-b", "acct-num-t"])
                     .help("Roth IRA account number"),
@@ -212,6 +207,7 @@ impl Args {
                 Arg::with_name("acct-num-t")
                     .long("trad-acct")
                     .short("t")
+                    .requires("retirement-year")
                     .takes_value(true)
                     .required_unless_one(&["acct-num-b", "acct-num-r"])
                     .help("Traditional IRA account number"),
