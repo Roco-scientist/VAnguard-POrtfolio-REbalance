@@ -1,3 +1,4 @@
+use crate::asset::SubAllocations;
 use anyhow::{anyhow, Result};
 use std::{
     collections::HashMap,
@@ -7,22 +8,6 @@ use std::{
     ops::{Add, Div, Sub},
     vec::Vec,
 };
-
-// Constants used for proportion of portfolio contained within each.
-// Split by stocks and bonds
-// US stock as 2/3 of total stock.  Then split by 3 for Large, medium, and small cap
-const US_STOCK_FRACTION: f32 = 2.0 / 3.0;
-const EACH_US_STOCK: f32 = US_STOCK_FRACTION / 3.0;
-// International stock as 1/3 of total stock.  Then 1/3 of that as emerging markets and 2/3 as
-// total international
-const INT_STOCK_FRACTION: f32 = 1.0 / 3.0;
-const INT_EMERGING: f32 = INT_STOCK_FRACTION / 3.0;
-const INT_TOTAL: f32 = INT_STOCK_FRACTION * 2.0 / 3.0;
-// 2/3 of total bonds in US corporate bonds, 1/3 in internation bonds
-const US_BOND_FRACTION: f32 = 2.0 / 3.0;
-const US_CORP_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
-const US_TOT_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
-const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
 
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
 // display
@@ -37,6 +22,7 @@ lazy_static! {
         m.insert(StockSymbol::VXUS, "Total international stock");
         m.insert(StockSymbol::VWO, "Emerging markets stock");
         m.insert(StockSymbol::BNDX, "Total international bond");
+        m.insert(StockSymbol::VTIP, "Inflation protected securities");
         m
     };
 }
@@ -48,6 +34,7 @@ lazy_static! {
 pub enum StockSymbol {
     VXUS,
     BNDX,
+    VTIP,
     BND,
     VWO,
     VO,
@@ -74,6 +61,7 @@ impl StockSymbol {
         match symbol {
             "VXUS" => StockSymbol::VXUS,
             "BNDX" => StockSymbol::BNDX,
+            "VTIP" => StockSymbol::VTIP,
             "BND" => StockSymbol::BND,
             "VWO" => StockSymbol::VWO,
             "VO" => StockSymbol::VO,
@@ -135,6 +123,7 @@ pub fn all_stock_descriptions() -> String {
         StockSymbol::VXUS,
         StockSymbol::VWO,
         StockSymbol::BNDX,
+        StockSymbol::VTIP,
     ] {
         descriptions.push_str(&symbol.description());
         descriptions.push('\n')
@@ -308,7 +297,10 @@ pub struct ShareValues {
     vb: f32,
     vtc: f32,
     vv: f32,
+    vtip: f32,
     vmfxx: f32,
+    outside_bond: f32,
+    outside_stock: f32,
 }
 
 impl ShareValues {
@@ -325,6 +317,7 @@ impl ShareValues {
         ShareValues {
             vxus: 0.0,
             bndx: 0.0,
+            vtip: 0.0,
             bnd: 0.0,
             vwo: 0.0,
             vo: 0.0,
@@ -332,6 +325,8 @@ impl ShareValues {
             vtc: 0.0,
             vv: 0.0,
             vmfxx: 0.0,
+            outside_bond: 0.0,
+            outside_stock: 0.0,
         }
     }
     /// new_quote creates a new ShareValues struct where all values are set to 1.  This is used for
@@ -350,6 +345,7 @@ impl ShareValues {
         ShareValues {
             vxus: 1.0,
             bndx: 1.0,
+            vtip: 1.0,
             bnd: 1.0,
             vwo: 1.0,
             vo: 1.0,
@@ -357,6 +353,8 @@ impl ShareValues {
             vtc: 1.0,
             vv: 1.0,
             vmfxx: 1.0,
+            outside_bond: 1.0,
+            outside_stock: 1.0,
         }
     }
 
@@ -373,30 +371,20 @@ impl ShareValues {
     /// # Example
     ///
     /// ```
-    /// use vapore::holdings;
+    /// use vapore::{asset, holdings};
     ///
-    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// let sub_allocations = asset::SubAllocations::new().unwrap();
+    ///
+    /// let brokerage_target = holdings::ShareValues::new_target(sub_allocations, 10000.0, 0.0, 0.0, 0.0, 0.0);
     /// ```
     pub fn new_target(
+        sub_allocations: SubAllocations,
         total_vanguard_value: f32,
-        percent_bond: f32,
-        percent_stock: f32,
         other_us_stock_value: f32,
         other_us_bond_value: f32,
-        other_int_bond_value: f32,
         other_int_stock_value: f32,
+        other_int_bond_value: f32,
     ) -> Self {
-        // Check to make sure all values add up to 1, ie 100%
-        let total_percent = INT_TOTAL * percent_stock / 100.0
-            + INT_BOND_FRACTION * percent_bond / 100.0
-            + INT_EMERGING * percent_stock / 100.0
-            + EACH_US_STOCK * percent_stock / 100.0
-            + EACH_US_STOCK * percent_stock / 100.0
-            + US_CORP_BOND_FRACTION * percent_bond / 100.0
-            + US_CORP_BOND_FRACTION * percent_bond / 100.0
-            + EACH_US_STOCK * percent_stock / 100.0;
-        assert!((0.999..1.001).contains(&total_percent), "Fractions did not add up for brokerage account.  The bond to stock ratio is likely off and should add up to 100");
-
         // get total value
         let total_value = total_vanguard_value
             + other_us_stock_value
@@ -405,22 +393,22 @@ impl ShareValues {
             + other_int_stock_value;
 
         // Calculate values for each stock
-        let vxus_value =
-            (total_value * INT_TOTAL * percent_stock / 100.0) - (other_int_stock_value * 2.0 / 3.0);
-        let bndx_value =
-            (total_value * INT_BOND_FRACTION * percent_bond / 100.0) - other_int_bond_value;
-        let bnd_value = (total_value * US_TOT_BOND_FRACTION * percent_bond / 100.0)
-            - (other_us_bond_value / 2.0);
-        let vwo_value =
-            (total_value * INT_EMERGING * percent_stock / 100.0) - (other_int_stock_value / 3.0);
+        let vxus_value = (total_value * sub_allocations.int_tot_stock / 100.0)
+            - (other_int_stock_value * 2.0 / 3.0);
+        let bndx_value = (total_value * sub_allocations.int_bond / 100.0) - other_int_bond_value;
+        let bnd_value =
+            (total_value * sub_allocations.us_tot_bond / 100.0) - (other_us_bond_value / 2.0);
+        let vwo_value = (total_value * sub_allocations.int_emerging_stock / 100.0)
+            - (other_int_stock_value / 3.0);
         let vo_value =
-            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
+            (total_value * sub_allocations.us_stock_mid / 100.0) - (other_us_stock_value / 3.0);
         let vb_value =
-            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
-        let vtc_value = (total_value * US_CORP_BOND_FRACTION * percent_bond / 100.0)
-            - (other_us_bond_value / 2.0);
+            (total_value * sub_allocations.us_stock_small / 100.0) - (other_us_stock_value / 3.0);
+        let vtc_value =
+            (total_value * sub_allocations.us_corp_bond / 100.0) - (other_us_bond_value / 2.0);
         let vv_value =
-            (total_value * EACH_US_STOCK * percent_stock / 100.0) - (other_us_stock_value / 3.0);
+            (total_value * sub_allocations.us_stock_large / 100.0) - (other_us_stock_value / 3.0);
+        let vtip_value = total_value * sub_allocations.inflation_protected / 100.0;
 
         // set vmfxx, ie cash, target value to 0 and return ShareValues
         ShareValues {
@@ -432,7 +420,10 @@ impl ShareValues {
             vb: vb_value,
             vtc: vtc_value,
             vv: vv_value,
+            vtip: vtip_value,
             vmfxx: 0.0,
+            outside_bond: other_int_bond_value + other_us_bond_value,
+            outside_stock: other_us_stock_value + other_int_stock_value,
         }
     }
 
@@ -473,6 +464,7 @@ impl ShareValues {
         match stock_info.symbol {
             StockSymbol::VXUS => self.vxus = value,
             StockSymbol::BNDX => self.bndx = value,
+            StockSymbol::VTIP => self.vtip = value,
             StockSymbol::BND => self.bnd = value,
             StockSymbol::VWO => self.vwo = value,
             StockSymbol::VO => self.vo = value,
@@ -507,6 +499,7 @@ impl ShareValues {
         match stock_symbol {
             StockSymbol::VXUS => self.vxus = value,
             StockSymbol::BNDX => self.bndx = value,
+            StockSymbol::VTIP => self.vtip = value,
             StockSymbol::BND => self.bnd = value,
             StockSymbol::VWO => self.vwo = value,
             StockSymbol::VO => self.vo = value,
@@ -517,6 +510,26 @@ impl ShareValues {
             StockSymbol::Empty => panic!("Stock symbol not set before adding value"),
             StockSymbol::Other(_) => (),
         }
+    }
+
+    /// Adds other stock value that is not included within the vanguard account.  This is used for
+    /// calculating current stock/bond ratios
+    pub fn add_outside_stock_value(&mut self, stock_value: f32) {
+        self.outside_stock = stock_value
+    }
+
+    pub fn outside_stock_value(&self) -> f32 {
+        self.outside_stock
+    }
+
+    /// Adds other bond value that is not included within the vanguard account.  This is used for
+    /// calculating current stock/bond ratios
+    pub fn add_outside_bond_value(&mut self, bond_value: f32) {
+        self.outside_bond = bond_value
+    }
+
+    pub fn outside_bond_value(&self) -> f32 {
+        self.outside_bond
     }
 
     /// stock_value retrieves the stored stock value within the ShareValues struct
@@ -541,6 +554,7 @@ impl ShareValues {
         match stock_symbol {
             StockSymbol::VXUS => self.vxus,
             StockSymbol::BNDX => self.bndx,
+            StockSymbol::VTIP => self.vtip,
             StockSymbol::BND => self.bnd,
             StockSymbol::VWO => self.vwo,
             StockSymbol::VO => self.vo,
@@ -578,26 +592,15 @@ impl ShareValues {
             + self.vtc
             + self.vv
             + self.vmfxx
+            + self.vtip
     }
 
     /// percent_stock_bond calculates the percent of stock and bond within the ShareValues.  This
     /// should only be used when the struct contains dollar value amounts for the stock values.
-    pub fn percent_stock_bond(
-        &self,
-        additional_stock: Option<f32>,
-        additional_bond: Option<f32>,
-    ) -> (f32, f32) {
-        let mut total_bond = self.bndx + self.bnd + self.vtc;
-        let mut total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus;
-        let mut total = self.total_value() - self.vmfxx;
-        if let Some(add_stock) = additional_stock {
-            total_stock += add_stock;
-            total += add_stock;
-        }
-        if let Some(add_bond) = additional_bond {
-            total_bond += add_bond;
-            total += add_bond;
-        }
+    pub fn percent_stock_bond(&self) -> (f32, f32) {
+        let total_bond = self.bndx + self.bnd + self.vtc + self.outside_bond;
+        let total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus + self.outside_stock;
+        let total = self.total_value() - self.vmfxx + self.outside_bond + self.outside_stock;
         (total_stock / total * 100.0, total_bond / total * 100.0)
     }
 }
@@ -615,6 +618,7 @@ impl Add for ShareValues {
         ShareValues {
             vxus: self.vxus + other.vxus,
             bndx: self.bndx + other.bndx,
+            vtip: self.vtip + other.vtip,
             bnd: self.bnd + other.bnd,
             vwo: self.vwo + other.vwo,
             vo: self.vo + other.vo,
@@ -622,6 +626,8 @@ impl Add for ShareValues {
             vtc: self.vtc + other.vtc,
             vv: self.vv + other.vv,
             vmfxx: self.vmfxx + other.vmfxx,
+            outside_bond: self.outside_bond + other.outside_bond,
+            outside_stock: self.outside_stock + other.outside_stock,
         }
     }
 }
@@ -633,6 +639,7 @@ impl Sub for ShareValues {
         ShareValues {
             vxus: self.vxus - other.vxus,
             bndx: self.bndx - other.bndx,
+            vtip: self.vtip - other.vtip,
             bnd: self.bnd - other.bnd,
             vwo: self.vwo - other.vwo,
             vo: self.vo - other.vo,
@@ -640,6 +647,8 @@ impl Sub for ShareValues {
             vtc: self.vtc - other.vtc,
             vv: self.vv - other.vv,
             vmfxx: self.vmfxx - other.vmfxx,
+            outside_bond: self.outside_bond - other.outside_bond,
+            outside_stock: self.outside_stock - other.outside_stock,
         }
     }
 }
@@ -651,6 +660,7 @@ impl Div for ShareValues {
         ShareValues {
             vxus: self.vxus / other.vxus,
             bndx: self.bndx / other.bndx,
+            vtip: self.vtip / other.vtip,
             bnd: self.bnd / other.bnd,
             vwo: self.vwo / other.vwo,
             vo: self.vo / other.vo,
@@ -658,31 +668,36 @@ impl Div for ShareValues {
             vtc: self.vtc / other.vtc,
             vv: self.vv / other.vv,
             vmfxx: self.vmfxx / other.vmfxx,
+            outside_bond: self.outside_bond / other.outside_bond,
+            outside_stock: self.outside_stock / other.outside_stock,
         }
     }
 }
 
 impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (stock, bond) = self.percent_stock_bond(None, None);
+        let (stock, bond) = self.percent_stock_bond();
         write!(
             f,
             "\
-            Symbol     Value\n\
-            --------------------\n\
-            VV         {:.2}\n\
-            VO         {:.2}\n\
-            VB         {:.2}\n\
-            VTC        {:.2}\n\
-            BND        {:.2}\n\
-            VXUS       {:.2}\n\
-            VWO        {:.2}\n\
-            BNDX       {:.2}\n\
-            --------------------\n\
-            Cash       {:.2}\n\
-            Total      {:.2}\n\
-            Stock:Bond {:.1}:{:.1}\n\
-            ====================
+            Symbol         Value\n\
+            ------------------------\n\
+            VV             {:.2}\n\
+            VO             {:.2}\n\
+            VB             {:.2}\n\
+            VTC            {:.2}\n\
+            BND            {:.2}\n\
+            VXUS           {:.2}\n\
+            VWO            {:.2}\n\
+            BNDX           {:.2}\n\
+            VTIP           {:.2}\n\
+            ------------------------\n\
+            Cash           {:.2}\n\
+            Total          {:.2}\n\
+            Outside stock  {:.2}\n\
+            Outside bond   {:.2}\n\
+            Stock:Bond     {:.1}:{:.1}\n\
+            ========================
             ",
             self.vv,
             self.vo,
@@ -692,8 +707,11 @@ impl fmt::Display for ShareValues {
             self.vxus,
             self.vwo,
             self.bndx,
+            self.vtip,
             self.vmfxx,
             self.total_value(),
+            self.outside_stock,
+            self.outside_bond,
             stock,
             bond
         )
@@ -808,12 +826,14 @@ impl AccountHoldings {
     /// # Example
     ///
     /// ```
-    /// use vapore::holdings;
+    /// use vapore::{asset, holdings};
+    ///
+    /// let sub_allocations = asset::SubAllocations::new().unwrap();
     ///
     /// let quotes = holdings::ShareValues::new_quote();
     ///
     /// let brokerage_current = holdings::ShareValues::new();
-    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// let brokerage_target = holdings::ShareValues::new_target(sub_allocations, 10000.0, 0.0, 0.0, 0.0, 0.0);
     /// let purchase_sales = brokerage_current / quotes;
     ///
     /// let brokerage_account = holdings::AccountHoldings::new(brokerage_current, brokerage_target, purchase_sales);
@@ -833,10 +853,10 @@ impl AccountHoldings {
 
 impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (current_stock, current_bond) = self.current.percent_stock_bond(None, None);
+        let (current_stock, current_bond) = self.current.percent_stock_bond();
         let current_stock_bond = format!("{:.1}:{:.1}", current_stock, current_bond);
 
-        let (target_stock, target_bond) = self.target.percent_stock_bond(None, None);
+        let (target_stock, target_bond) = self.target.percent_stock_bond();
         let target_stock_bond = format!("{:.1}:{:.1}", target_stock, target_bond);
 
         write!(
@@ -851,9 +871,12 @@ impl fmt::Display for AccountHoldings {
             VXUS     {:<15.2}${:<15.2}${:<15.2}\n\
             VWO      {:<15.2}${:<15.2}${:<15.2}\n\
             BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
+            VTIP     {:<15.2}${:<15.2}${:<15.2}\n\
             --------------------------------------------------\n\
             Cash                    ${:<15.2}${:<15.2}\n\
             Total                   ${:<15.2}\n\
+            Outside stock           ${:<15.2}${:<15.2}\n\
+            Outside bond            ${:<15.2}${:<15.2}\n\
             Stock:Bond              {:<16}{:<15}\n\
             ==================================================",
             self.sale_purchases_needed.vv,
@@ -880,9 +903,16 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.bndx,
             self.current.bndx,
             self.target.bndx,
+            self.sale_purchases_needed.vtip,
+            self.current.vtip,
+            self.target.vtip,
             self.current.vmfxx,
             self.target.vmfxx,
             self.current.total_value(),
+            self.current.outside_stock,
+            self.target.outside_stock,
+            self.current.outside_bond,
+            self.target.outside_bond,
             current_stock_bond,
             target_stock_bond,
         )
@@ -924,12 +954,14 @@ impl VanguardRebalance {
     /// # Example
     ///
     /// ```
-    /// use vapore::holdings;
+    /// use vapore::{asset, holdings};
     ///
     /// let quotes = holdings::ShareValues::new_quote();
     ///
+    /// let sub_allocations = asset::SubAllocations::new().unwrap();
+    ///
     /// let brokerage_current = holdings::ShareValues::new();
-    /// let brokerage_target = holdings::ShareValues::new_target(10000.0, 40.0, 60.0, 0.0, 0.0, 0.0, 0.0);
+    /// let brokerage_target = holdings::ShareValues::new_target(sub_allocations, 10000.0, 0.0, 0.0, 0.0, 0.0);
     /// let purchase_sales = brokerage_current / quotes;
     ///
     /// let brokerage_account = holdings::AccountHoldings::new(brokerage_current, brokerage_target, purchase_sales);
