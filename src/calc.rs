@@ -100,7 +100,7 @@ fn retirement_calc(
     let mut roth_ira_account_option = None;
     let mut target_overall_retirement_option = None;
 
-    let mut allocations;
+    let mut allocations = Allocations::new();
 
     if let Some(retirement_year) = args.retirement_year_option {
         allocations = Allocations::retirement(retirement_year)?;
@@ -116,9 +116,8 @@ fn retirement_calc(
     } else if let Some(bond_percent) = args.percent_bond_retirement_option {
         let stock_percent = 100.0 - bond_percent;
         allocations = Allocations::custom(stock_percent, bond_percent, 0.0)?;
-    } else {
-        allocations = Allocations::new();
     };
+
     let sub_allocations = SubAllocations::new_custom(allocations)?;
 
     if let Some(mut roth_holdings) = vanguard_holdings.roth_ira_holdings() {
