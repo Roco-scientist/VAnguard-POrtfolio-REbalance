@@ -18,6 +18,7 @@ const US_CORP_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
 const US_TOT_BOND_FRACTION: f32 = US_BOND_FRACTION / 2.0;
 const INT_BOND_FRACTION: f32 = 1.0 / 3.0;
 
+/// Holds the stock, bond, and inflation protected percentages.
 pub struct Allocations {
     total_stock: f32,
     total_bond: f32,
@@ -25,6 +26,7 @@ pub struct Allocations {
 }
 
 impl Allocations {
+    /// Default asset allocations at 60% stock and 40% bond
     pub fn new() -> Self {
         Allocations{
             total_stock: 60.0,
@@ -32,6 +34,8 @@ impl Allocations {
             total_inflation_protected: 0.0
         }
     }
+    /// Calculates the stock, bond, and inflation protected percentages based on Vanguard target
+    /// asset allocation.
     pub fn retirement(year: i32) -> Result<Self> {
         ensure!(
             (2000..3000).contains(&year),
@@ -63,6 +67,9 @@ impl Allocations {
             total_inflation_protected,
         })
     }
+
+    /// Creates a Allocations struct with custom input values for stock, bond, and inflaction
+    /// protected precentages.
     pub fn custom(
         total_stock: f32,
         total_bond: f32,
@@ -82,14 +89,17 @@ impl Allocations {
         })
     }
 
+    /// Return total stock asset allocation percentage.
     pub fn total_stock(&self) -> f32 {
         self.total_stock
     }
 
+    /// Returns total bond asset allocation percentage.
     pub fn total_bond(&self) -> f32 {
         self.total_bond
     }
 
+    /// Returns total inflation protected asset allocation percentage.
     pub fn total_inflation_protected(&self) -> f32 {
         self.total_inflation_protected
     }
@@ -109,6 +119,8 @@ impl fmt::Display for Allocations {
     }
 }
 
+/// Holds the percentage of allocation for each type of stock, bond, etc.  splitting by US and
+/// international and other categories.
 pub struct SubAllocations {
     pub us_stock_large: f32,
     pub us_stock_mid: f32,
@@ -122,11 +134,15 @@ pub struct SubAllocations {
 }
 
 impl SubAllocations {
+    /// Creates a default SubAllocations struct using the default Allocations of 60% stock and 40%
+    /// bond
     pub fn new() -> Result<Self> {
         let allocations = Allocations::new();
         Self::new_custom(allocations)
     }
 
+    /// Divides the asset bond/stock allocations set by the Allocations struct into percentages for
+    /// the SubAllocations of how much within international, domestic, bond, stock etc.
     pub fn new_custom(allocations: Allocations) -> Result<Self> {
         let us_stock_large = allocations.total_stock() * EACH_US_STOCK;
         let us_stock_mid = allocations.total_stock() * EACH_US_STOCK;
