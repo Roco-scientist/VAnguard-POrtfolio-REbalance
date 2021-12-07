@@ -297,7 +297,7 @@ pub fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
         anyhow!("Stock symbol not supported for yahoo retrieval");
     }
     let provider = yahoo::YahooConnector::new();
-    let response = block_on(provider.get_latest_quotes("BNDX", "1m"))?;
+    let response = block_on(provider.get_latest_quotes(stock_str, "1m"))?;
     Ok(response.last_quote()?.close as f32)
 }
 
@@ -1104,6 +1104,7 @@ pub fn parse_csv_download(
             }
         }
     }
+    quotes.add_missing_quotes()?;
 
     let account_numbers = accounts.keys().cloned().collect::<Vec<u32>>();
 
