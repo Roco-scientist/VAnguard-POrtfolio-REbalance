@@ -141,7 +141,7 @@ fn retirement_calc(
                 args.traditional_int_bond_add + args.roth_int_bond_add,
             );
 
-            target_overall_retirement_option = Some(target_overall_retirement.clone());
+            target_overall_retirement_option = Some(target_overall_retirement);
             let mut roth_total = roth_holdings.total_value();
             let mut roth_target = ShareValues::new();
             for stock_symbol in HIGH_TO_LOW_RISK {

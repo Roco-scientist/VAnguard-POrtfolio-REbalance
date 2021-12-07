@@ -1,5 +1,6 @@
 use crate::asset::SubAllocations;
 use anyhow::{anyhow, Result};
+use futures::executor::block_on;
 use std::{
     collections::HashMap,
     fmt,
@@ -8,6 +9,7 @@ use std::{
     ops::{Add, Div, Sub},
     vec::Vec,
 };
+use yahoo_finance_api as yahoo;
 
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
 // display
@@ -278,6 +280,27 @@ impl Default for StockInfo {
     }
 }
 
+pub fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
+    let stock_str = match stock_symbol {
+        StockSymbol::VO => "VO",
+        StockSymbol::VB => "VB",
+        StockSymbol::VV => "VV",
+        StockSymbol::BND => "BND",
+        StockSymbol::VWO => "VWO",
+        StockSymbol::VTC => "VTC",
+        StockSymbol::VXUS => "VXUS",
+        StockSymbol::BNDX => "BNDX",
+        StockSymbol::VTIP => "VTIP",
+        _ => "none",
+    };
+    if stock_str == "none" {
+        anyhow!("Stock symbol not supported for yahoo retrieval");
+    }
+    let provider = yahoo::YahooConnector::new();
+    let response = block_on(provider.get_latest_quotes(stock_str, "1m"))?;
+    Ok(response.last_quote()?.close as f32)
+}
+
 /// AddType is an enum used to distinguish between when a stock quote or an account holdings is
 /// wanted for input into a ShareValues struct.
 pub enum AddType {
@@ -356,6 +379,26 @@ impl ShareValues {
             outside_bond: 1.0,
             outside_stock: 1.0,
         }
+    }
+
+    pub fn add_missing_quotes(&mut self) -> Result<()> {
+        for stock_symbol in [
+            StockSymbol::VV,
+            StockSymbol::VO,
+            StockSymbol::VB,
+            StockSymbol::VTC,
+            StockSymbol::BND,
+            StockSymbol::VXUS,
+            StockSymbol::VWO,
+            StockSymbol::BNDX,
+            StockSymbol::VTIP,
+        ] {
+            if self.stock_value(stock_symbol.clone()) == 1.0 {
+                let new_quote = get_yahoo_quote(stock_symbol.clone())?;
+                self.add_stock_value(stock_symbol, new_quote);
+            }
+        }
+        Ok(())
     }
 
     /// new_target creates a new target ShareValues struct which determines what to what values to
@@ -1061,6 +1104,7 @@ pub fn parse_csv_download(
             }
         }
     }
+    quotes.add_missing_quotes()?;
 
     let account_numbers = accounts.keys().cloned().collect::<Vec<u32>>();
 
