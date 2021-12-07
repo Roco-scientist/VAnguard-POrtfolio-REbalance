@@ -87,6 +87,3 @@ Total                   $19294.79
 ```
   
 Where the second column contains the number of ETF stocks to purchase (positive) or sell (negative).
-If this is the first time running the algorithm without purchasing any ETFs yet, the second column will
-be the dollar amount needed to buy instead of quantity.  This is because the algorithm uses the downloaded
-vanguard file to get the per stock price.  It is set to $1 if it is not included in this downloaded file.
