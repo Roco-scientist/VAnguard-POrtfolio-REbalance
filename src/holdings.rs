@@ -638,13 +638,18 @@ impl ShareValues {
             + self.vtip
     }
 
-    /// percent_stock_bond calculates the percent of stock and bond within the ShareValues.  This
-    /// should only be used when the struct contains dollar value amounts for the stock values.
-    pub fn percent_stock_bond(&self) -> (f32, f32) {
+    /// percent_stock_bond_infl calculates the percent of stock, bond, and inflation protected
+    /// assets within the ShareValues.  This should only be used when the struct contains dollar
+    /// value amounts for the stock values.
+    pub fn percent_stock_bond_infl(&self) -> (f32, f32, f32) {
         let total_bond = self.bndx + self.bnd + self.vtc + self.outside_bond;
         let total_stock = self.vwo + self.vo + self.vb + self.vv + self.vxus + self.outside_stock;
         let total = self.total_value() - self.vmfxx + self.outside_bond + self.outside_stock;
-        (total_stock / total * 100.0, total_bond / total * 100.0)
+        (
+            total_stock / total * 100.0,
+            total_bond / total * 100.0,
+            self.vtip / total * 100.0,
+        )
     }
 }
 
@@ -719,28 +724,28 @@ impl Div for ShareValues {
 
 impl fmt::Display for ShareValues {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (stock, bond) = self.percent_stock_bond();
+        let (stock, bond, inflation) = self.percent_stock_bond_infl();
         write!(
             f,
             "\
             Symbol         Value\n\
-            ------------------------\n\
-            VV             {:.2}\n\
-            VO             {:.2}\n\
-            VB             {:.2}\n\
-            VTC            {:.2}\n\
-            BND            {:.2}\n\
-            VXUS           {:.2}\n\
-            VWO            {:.2}\n\
-            BNDX           {:.2}\n\
-            VTIP           {:.2}\n\
-            ------------------------\n\
-            Cash           {:.2}\n\
-            Total          {:.2}\n\
-            Outside stock  {:.2}\n\
-            Outside bond   {:.2}\n\
-            Stock:Bond     {:.1}:{:.1}\n\
-            ========================
+            --------------------------\n\
+            VV               {:.2}\n\
+            VO               {:.2}\n\
+            VB               {:.2}\n\
+            VTC              {:.2}\n\
+            BND              {:.2}\n\
+            VXUS             {:.2}\n\
+            VWO              {:.2}\n\
+            BNDX             {:.2}\n\
+            VTIP             {:.2}\n\
+            --------------------------\n\
+            Cash             {:.2}\n\
+            Total            {:.2}\n\
+            Outside stock    {:.2}\n\
+            Outside bond     {:.2}\n\
+            Stock:Bond:Infl  {:.1}:{:.1}:{:.1}\n\
+            ==========================
             ",
             self.vv,
             self.vo,
@@ -756,7 +761,8 @@ impl fmt::Display for ShareValues {
             self.outside_stock,
             self.outside_bond,
             stock,
-            bond
+            bond,
+            inflation
         )
     }
 }
@@ -896,11 +902,18 @@ impl AccountHoldings {
 
 impl fmt::Display for AccountHoldings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (current_stock, current_bond) = self.current.percent_stock_bond();
-        let current_stock_bond = format!("{:.1}:{:.1}", current_stock, current_bond);
+        let (current_stock, current_bond, current_inflation) =
+            self.current.percent_stock_bond_infl();
+        let current_stock_bond = format!(
+            "{:.1}:{:.1}:{:.1}",
+            current_stock, current_bond, current_inflation
+        );
 
-        let (target_stock, target_bond) = self.target.percent_stock_bond();
-        let target_stock_bond = format!("{:.1}:{:.1}", target_stock, target_bond);
+        let (target_stock, target_bond, target_inflation) = self.target.percent_stock_bond_infl();
+        let target_stock_bond = format!(
+            "{:.1}:{:.1}:{:.1}",
+            target_stock, target_bond, target_inflation
+        );
 
         write!(
             f,
@@ -920,7 +933,7 @@ impl fmt::Display for AccountHoldings {
             Total                   ${:<15.2}\n\
             Outside stock           ${:<15.2}${:<15.2}\n\
             Outside bond            ${:<15.2}${:<15.2}\n\
-            Stock:Bond              {:<16}{:<15}\n\
+            Stock:Bond:Inflation    {:<16}{:<15}\n\
             ==================================================",
             self.sale_purchases_needed.vv,
             self.current.vv,
