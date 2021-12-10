@@ -847,16 +847,16 @@ impl VanguardHoldings {
     /// assert_eq!(new_vanguard.brokerage_holdings(), Some(new_values_comp));
     /// ```
     pub fn brokerage_holdings(&self) -> Option<ShareValues> {
-        self.brokerage.clone()
+        self.brokerage
     }
     pub fn traditional_ira_holdings(&self) -> Option<ShareValues> {
-        self.traditional_ira.clone()
+        self.traditional_ira
     }
     pub fn roth_ira_holdings(&self) -> Option<ShareValues> {
-        self.roth_ira.clone()
+        self.roth_ira
     }
     pub fn stock_quotes(&self) -> ShareValues {
-        self.quotes.clone()
+        self.quotes
     }
 }
 
