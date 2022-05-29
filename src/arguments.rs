@@ -80,11 +80,12 @@ impl Args {
             )
             .arg(
                 Arg::with_name("add-cash-brokerage")
-                    .long("add-cash-brokerage")
+                    .long("adjust-cash-brokerage")
                     .short("B")
+                    .allow_hyphen_values(true)
                     .takes_value(true)
                     .default_value("0")
-                    .help("Amount of cash added to the brokerage account"),
+                    .help("Amount of cash added to or withdraw from the brokerage account"),
             )
             .arg(
                 Arg::with_name("add-us-stock-brokerage")
@@ -116,11 +117,12 @@ impl Args {
             )
             .arg(
                 Arg::with_name("add-cash-traditional")
-                    .long("add-cash-traditional")
+                    .long("adjust-cash-traditional")
                     .short("T")
+                    .allow_hyphen_values(true)
                     .takes_value(true)
                     .default_value("0")
-                    .help("Amount of cash added to the traditional IRA account"),
+                    .help("Amount of cash added to or withdraw from the traditional IRA account"),
             )
             .arg(
                 Arg::with_name("add-us-stock-traditional")
@@ -152,11 +154,12 @@ impl Args {
             )
             .arg(
                 Arg::with_name("add-cash-roth")
-                    .long("add-cash-roth")
+                    .long("adjust-cash-roth")
                     .short("R")
+                    .allow_hyphen_values(true)
                     .takes_value(true)
                     .default_value("0")
-                    .help("Amount of cash added to the roth IRA account"),
+                    .help("Amount of cash added to or withdraw from the roth IRA account"),
             )
             .arg(
                 Arg::with_name("add-us-stock-roth")
