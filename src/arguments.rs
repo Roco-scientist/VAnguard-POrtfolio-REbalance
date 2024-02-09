@@ -32,6 +32,7 @@ pub struct Args {
     pub trad_acct_option: Option<u32>, // Vanguard traditional IRA account number
     pub roth_acct_option: Option<u32>, // Vanguard roth IRA account number
     pub output: bool,                  // Whether or not to output calculations to a txt file
+    pub age_option: Option<u8>,        // age
 }
 
 impl Args {
@@ -222,6 +223,12 @@ impl Args {
                     .takes_value(false)
                     .help("Output to text file in current directory"),
             )
+            .arg(
+                Arg::with_name("age")
+                    .long("age")
+                    .takes_value(true)
+                    .help("Age which is used to calculate minimum distribution"),
+            )
             .get_matches();
 
         let csv_path = args.value_of("Vanguard-Download").unwrap().to_string();
@@ -339,6 +346,10 @@ impl Args {
         if let Some(roth_acct_str) = args.value_of("acct-num-r") {
             roth_acct_option = Some(roth_acct_str.parse::<u32>().unwrap())
         }
+        let mut age_option = None;
+        if let Some(age) = args.value_of("age") {
+            age_option = Some(age.parse::<u8>().unwrap())
+        }
         let output = args.is_present("output");
         Args {
             csv_path,
@@ -366,6 +377,7 @@ impl Args {
             trad_acct_option,
             roth_acct_option,
             output,
+            age_option,
         }
     }
 }

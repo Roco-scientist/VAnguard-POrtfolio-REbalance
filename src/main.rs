@@ -15,6 +15,16 @@ async fn main() -> Result<()> {
         args.brokerage_us_stock_add += account.equity as f32;
     }
     let vanguard_holdings = vapore::holdings::parse_csv_download(&args.csv_path, args.clone())?;
+
+    // If an age is given, print the minumum distribution needed for the year
+    // TODO: need to calculate this from the value on December 31st of the previous year
+    if let Some(age) = args.age_option {
+        if let Some(tradtional) = vanguard_holdings.traditional_ira_holdings() {
+            let minimum_distribution =
+                vapore::calc::calculate_minimum_distribution(age, tradtional.total_value());
+            println!("\n\nMinimum distribution: ${:.2}\n\n", minimum_distribution)
+        }
+    }
     //    .unwrap_or_else(|err| panic!("Holdings error: {}", err));
     let rebalance = vapore::calc::to_buy(vanguard_holdings, args.clone())?;
     println!(
