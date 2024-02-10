@@ -9,6 +9,7 @@ use std::{
     ops::{Add, Div, Sub},
     vec::Vec,
 };
+use chrono::NaiveDate;
 use yahoo_finance_api as yahoo;
 
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
@@ -781,6 +782,7 @@ pub struct VanguardHoldings {
     traditional_ira: Option<ShareValues>,
     roth_ira: Option<ShareValues>,
     quotes: ShareValues,
+    transactions: Vec<Transaction>
 }
 
 impl VanguardHoldings {
@@ -802,6 +804,7 @@ impl VanguardHoldings {
             traditional_ira: None,
             roth_ira: None,
             quotes,
+            transactions: Vec::new(),
         }
     }
 
@@ -1069,6 +1072,29 @@ impl fmt::Display for VanguardRebalance {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Transaction {
+    account_number: u32,
+    trade_date: NaiveDate,
+    // type: TransactionType,
+    symbol: StockSymbol,
+    shares: f64,
+}
+
+// #[derive(Clone, Eq, Hash, PartialEq, Debug)]
+// enum TransactionType {
+//     BUY,
+//     SELL,
+//     FUNDS_IN,
+//     FOUNDS_OUT,
+//     SWEEP_IN,
+//     SWEEP_OUT,
+//     DIVIDEND,
+//     REINVESTMENT,
+//     CONVERSION_OUT,
+//     CONVERSION_IN,
+// }
+
 /// parse_csv_download takes in the file path of the downloaded file from Vanguard and parses it
 /// into VanguardHoldings.  The VanguardHoldings is a struct which holds the values of what is
 /// contained within the vangaurd account along with quotes for each of the ETFs
@@ -1077,9 +1103,13 @@ pub fn parse_csv_download(
     args: crate::arguments::Args,
 ) -> Result<VanguardHoldings> {
     let mut header = Vec::new();
+    let mut transaction_header = Vec::new();
     let csv_file = File::open(csv_path)?;
     let mut accounts: HashMap<u32, ShareValues> = HashMap::new();
     let mut quotes = ShareValues::new_quote();
+
+    let mut holdings_row = true;
+    let mut transactions = Vec::new();
 
     // iterate through all of the rows of the vanguard downlaoaded file and add the information to
     // StockInfo structs, which then are aggregated into the accounts hashmap where the account
@@ -1088,31 +1118,67 @@ pub fn parse_csv_download(
         let row = row_result?;
         if row.contains(',') {
             if row.contains("Trade Date") {
-                break;
+                holdings_row = false;
             }
             let row_split = row
                 .split(',')
                 .map(|value| value.to_string())
                 .collect::<Vec<String>>();
-            let mut stock_info = StockInfo::new();
-            if header.is_empty() {
-                header = row_split
-            } else {
-                for (value, head) in row_split.iter().zip(&header) {
-                    match head.as_str() {
-                        "Account Number" => stock_info.add_account(value.parse::<u32>()?),
-                        "Symbol" => stock_info.add_symbol(StockSymbol::new(value)),
-                        "Share Price" => stock_info.add_share_price(value.parse::<f32>()?),
-                        "Total Value" => stock_info.add_total_value(value.parse::<f32>()?),
-                        _ => continue,
+            if holdings_row{
+                let mut stock_info = StockInfo::new();
+                if header.is_empty() {
+                    header = row_split
+                } else {
+                    for (value, head) in row_split.iter().zip(&header) {
+                        match head.as_str() {
+                            "Account Number" => stock_info.add_account(value.parse::<u32>()?),
+                            "Symbol" => stock_info.add_symbol(StockSymbol::new(value)),
+                            "Share Price" => stock_info.add_share_price(value.parse::<f32>()?),
+                            "Total Value" => stock_info.add_total_value(value.parse::<f32>()?),
+                            _ => continue,
+                        }
+                    }
+                    if stock_info.finished() {
+                        let account_value = accounts
+                            .entry(stock_info.account_number)
+                            .or_insert_with(ShareValues::new);
+                        account_value.add_stockinfo_value(stock_info.clone(), AddType::HoldingValue);
+                        quotes.add_stockinfo_value(stock_info, AddType::StockPrice);
                     }
                 }
-                if stock_info.finished() {
-                    let account_value = accounts
-                        .entry(stock_info.account_number)
-                        .or_insert_with(ShareValues::new);
-                    account_value.add_stockinfo_value(stock_info.clone(), AddType::HoldingValue);
-                    quotes.add_stockinfo_value(stock_info, AddType::StockPrice);
+            }else{
+                if transaction_header.is_empty() {
+                    transaction_header = row_split
+                }else{
+                    let mut account_num_option = None;
+                    let mut trade_date_option = None;
+                    let mut symbol_option = None;
+                    let mut shares_option = None;
+                    for (value, head) in row_split.iter().zip(&header) {
+                        match head.as_str() {
+                            "Account Number" => account_num_option = Some(value.parse::<u32>()?),
+                            "Symbol" => symbol_option = Some(StockSymbol::new(value)),
+                            "Shares" => shares_option = Some(value.parse::<f64>()?),
+                            "Trade Date" => trade_date_option = Some(NaiveDate::parse_from_str(value, "%Y-%m-%d")?),
+                            _ => continue,
+                        }
+                    }
+                    if let Some(account_number) = account_num_option {
+                        if let Some(symbol) = symbol_option {
+                            if let Some(shares) = shares_option {
+                                if let Some(trade_date) = trade_date_option {
+                                    transactions.push(
+                                        Transaction{
+                                            account_number,
+                                            symbol,
+                                            shares,
+                                            trade_date
+                                        }
+                                                       )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1172,5 +1238,6 @@ pub fn parse_csv_download(
         traditional_ira,
         roth_ira,
         quotes,
+        transactions
     })
 }
