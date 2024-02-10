@@ -140,10 +140,12 @@ pub struct StockInfo {
     pub account_number: u32,
     pub symbol: StockSymbol,
     pub share_price: f32,
+    pub shares: f32,
     pub total_value: f32,
     account_added: bool,
     symbol_added: bool,
     share_price_added: bool,
+    shares_added: bool,
     total_value_added: bool,
 }
 
@@ -163,10 +165,12 @@ impl StockInfo {
             account_number: 0,
             symbol: StockSymbol::Empty,
             share_price: 0.0,
+            shares: 0.0,
             total_value: 0.0,
             account_added: false,
             symbol_added: false,
             share_price_added: false,
+            shares_added: false,
             total_value_added: false,
         }
     }
@@ -225,6 +229,26 @@ impl StockInfo {
         self.share_price_added = true;
     }
 
+    /// add_share adds the stock total shares to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    /// new_stock.add_shares(10.0)
+    ///
+    /// assert_eq!(new_stock.shares, 10.0);
+    /// ```
+    pub fn add_shares(&mut self, share_num: f32) {
+        self.shares = share_num;
+        self.shares_added = true;
+    }
+
     /// add_total_value adds the account total value of the stock to the StockInfo struct
     ///
     /// # Example
@@ -257,6 +281,7 @@ impl StockInfo {
     /// new_stock.add_symbol(holdings::StockSymbol::BND);
     /// new_stock.add_share_price(234.50);
     /// new_stock.add_total_value(5000.00);
+    /// new_stock.add_shares(10.0);
     ///
     /// assert!(new_stock.finished());
     ///
@@ -268,6 +293,7 @@ impl StockInfo {
             self.account_added,
             self.symbol_added,
             self.share_price_added,
+            self.shares_added,
             self.total_value_added,
         ]
         .iter()
@@ -783,6 +809,7 @@ pub struct VanguardHoldings {
     roth_ira: Option<ShareValues>,
     quotes: ShareValues,
     transactions: Vec<Transaction>,
+    traditional_shares_option: Option<ShareValues>,
 }
 
 impl VanguardHoldings {
@@ -805,6 +832,7 @@ impl VanguardHoldings {
             roth_ira: None,
             quotes,
             transactions: Vec::new(),
+            traditional_shares_option: None,
         }
     }
 
@@ -860,6 +888,22 @@ impl VanguardHoldings {
     }
     pub fn stock_quotes(&self) -> ShareValues {
         self.quotes
+    }
+    pub fn eoy_traditional_holdings(&self) -> Option<ShareValues> {
+        if let Some(trad_holdings) = self.traditional_shares_option {
+            if self.transactions.is_empty() {
+                eprintln!("No transactions found to calculate EOY holdings for minimum distribution");
+                None
+            }else{
+                let mut eoy_holdings = trad_holdings.clone();
+                for transaction in &self.transactions {
+                    eoy_holdings.add_stock_value(transaction.symbol.clone(), transaction.shares * -1.0);
+                }
+                Some(eoy_holdings)
+            }
+        }else{
+            None
+        }
     }
 }
 
@@ -1078,7 +1122,7 @@ pub struct Transaction {
     trade_date: NaiveDate,
     // type: TransactionType,
     symbol: StockSymbol,
-    shares: f64,
+    shares: f32,
 }
 
 // #[derive(Clone, Eq, Hash, PartialEq, Debug)]
@@ -1107,6 +1151,7 @@ pub fn parse_csv_download(
     let csv_file = File::open(csv_path)?;
     let mut accounts: HashMap<u32, ShareValues> = HashMap::new();
     let mut quotes = ShareValues::new_quote();
+    let mut traditional_shares_option: Option<ShareValues> = None;
 
     let mut holdings_row = true;
     let mut transactions = Vec::new();
@@ -1133,6 +1178,7 @@ pub fn parse_csv_download(
                         match head.as_str() {
                             "Account Number" => stock_info.add_account(value.parse::<u32>()?),
                             "Symbol" => stock_info.add_symbol(StockSymbol::new(value)),
+                            "Shares" => stock_info.add_shares(value.parse::<f32>()?),
                             "Share Price" => stock_info.add_share_price(value.parse::<f32>()?),
                             "Total Value" => stock_info.add_total_value(value.parse::<f32>()?),
                             _ => continue,
@@ -1144,7 +1190,18 @@ pub fn parse_csv_download(
                             .or_insert_with(ShareValues::new);
                         account_value
                             .add_stockinfo_value(stock_info.clone(), AddType::HoldingValue);
-                        quotes.add_stockinfo_value(stock_info, AddType::StockPrice);
+                        quotes.add_stockinfo_value(stock_info.clone(), AddType::StockPrice);
+                        if let Some(traditional_acct_num) = args.trad_acct_option {
+                            if stock_info.account_number == traditional_acct_num {
+                                if let Some(mut traditional_shares) = traditional_shares_option {
+                                    traditional_shares.add_stock_value(stock_info.symbol, stock_info.shares);
+                                }else{
+                                    let mut shares = ShareValues::new();
+                                    shares.add_stock_value(stock_info.symbol, stock_info.shares);
+                                    traditional_shares_option = Some(shares);
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -1159,7 +1216,7 @@ pub fn parse_csv_download(
                         match head.as_str() {
                             "Account Number" => account_num_option = Some(value.parse::<u32>()?),
                             "Symbol" => symbol_option = Some(StockSymbol::new(value)),
-                            "Shares" => shares_option = Some(value.parse::<f64>()?),
+                            "Shares" => shares_option = Some(value.parse::<f32>()?),
                             "Trade Date" => {
                                 trade_date_option =
                                     Some(NaiveDate::parse_from_str(value, "%Y-%m-%d")?)
@@ -1246,5 +1303,6 @@ pub fn parse_csv_download(
         roth_ira,
         quotes,
         transactions,
+        traditional_shares_option,
     })
 }
