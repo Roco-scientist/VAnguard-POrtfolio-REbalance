@@ -6,7 +6,7 @@ use std::{
     fmt,
     fs::File,
     io::{BufRead, BufReader},
-    ops::{Add, Div, Sub},
+    ops::{Add, Div, Mul, Sub},
     vec::Vec,
 };
 use time::{macros::format_description, OffsetDateTime};
@@ -832,6 +832,29 @@ impl Div for ShareValues {
             vmfxx: self.vmfxx / other.vmfxx,
             outside_bond: self.outside_bond / other.outside_bond,
             outside_stock: self.outside_stock / other.outside_stock,
+        }
+    }
+}
+
+impl Mul for ShareValues {
+    type Output = ShareValues;
+
+    fn mul(self, other: ShareValues) -> ShareValues {
+        ShareValues {
+            vxus: self.vxus * other.vxus,
+            bndx: self.bndx * other.bndx,
+            vtip: self.vtip * other.vtip,
+            vti: self.vti * other.vti,
+            vtivx: self.vtivx * other.vtivx,
+            bnd: self.bnd * other.bnd,
+            vwo: self.vwo * other.vwo,
+            vo: self.vo * other.vo,
+            vb: self.vb * other.vb,
+            vtc: self.vtc * other.vtc,
+            vv: self.vv * other.vv,
+            vmfxx: self.vmfxx * other.vmfxx,
+            outside_bond: self.outside_bond * other.outside_bond,
+            outside_stock: self.outside_stock * other.outside_stock,
         }
     }
 }
