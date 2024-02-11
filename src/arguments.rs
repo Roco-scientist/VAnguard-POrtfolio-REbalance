@@ -33,6 +33,7 @@ pub struct Args {
     pub roth_acct_option: Option<u32>, // Vanguard roth IRA account number
     pub output: bool,                  // Whether or not to output calculations to a txt file
     pub age_option: Option<u8>,        // age
+    pub distribution_table_path: String,
 }
 
 impl Args {
@@ -45,6 +46,12 @@ impl Args {
                 Arg::with_name("Vanguard-Download")
                     .required(true)
                     .help("CSV download file from Vanguard with holdings"),
+            )
+            .arg(
+                Arg::with_name("min-distribution")
+                    .long("min-distribution")
+                    .takes_value(true)
+                    .help("Path of the minimum distribution csv from the IRS"),
             )
             .arg(
                 Arg::with_name("retirement-year")
@@ -232,6 +239,7 @@ impl Args {
             .get_matches();
 
         let csv_path = args.value_of("Vanguard-Download").unwrap().to_string();
+        let distribution_table_path = args.value_of("min-distribution").unwrap_or_default().to_string();
 
         let percent_stock_brokerage = args
             .value_of("percent-stock-brokerage")
@@ -378,6 +386,7 @@ impl Args {
             roth_acct_option,
             output,
             age_option,
+            distribution_table_path,
         }
     }
 }

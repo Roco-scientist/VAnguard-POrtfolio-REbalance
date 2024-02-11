@@ -1,5 +1,5 @@
-use anyhow::{ensure, Result};
-use std::collections::HashMap;
+use anyhow::{ensure, Result, Context};
+use std::{collections::HashMap, io::{BufReader, BufRead}, fs::File};
 
 use crate::{
     arguments::Args,
@@ -221,59 +221,32 @@ fn retirement_calc(
 
 // Calculates the minimum distribution for an unmarried individual or someone without a spouse
 // greater than 10 years younger.
-pub fn calculate_minimum_distribution(age: u8, traditional_value: f32) -> f32 {
+pub fn calculate_minimum_distribution(age: u8, traditional_value: f32, csv_path: &str) -> Result<f32> {
     // Distribution table retrieved from here appendix B: https://www.irs.gov/publications/p590b#en_US_2022_publink100090310
     // May need to periodically be updated
-    let distribution_table: HashMap<u8, f32> = HashMap::from([
-        (72, 27.4),
-        (73, 26.5),
-        (74, 25.5),
-        (75, 24.6),
-        (76, 23.7),
-        (77, 22.9),
-        (78, 22.0),
-        (79, 21.1),
-        (80, 20.2),
-        (81, 19.4),
-        (82, 18.5),
-        (83, 17.7),
-        (84, 16.8),
-        (85, 16.0),
-        (86, 15.2),
-        (87, 14.4),
-        (88, 13.7),
-        (89, 12.9),
-        (90, 12.2),
-        (91, 11.5),
-        (92, 10.8),
-        (93, 10.1),
-        (94, 9.5),
-        (95, 8.9),
-        (96, 8.4),
-        (97, 7.8),
-        (98, 7.3),
-        (99, 6.8),
-        (100, 6.4),
-        (101, 6.0),
-        (102, 5.6),
-        (103, 5.2),
-        (104, 4.9),
-        (105, 4.6),
-        (106, 4.3),
-        (107, 4.1),
-        (108, 3.9),
-        (109, 3.7),
-        (110, 3.5),
-        (111, 3.4),
-        (112, 3.3),
-        (113, 3.1),
-        (114, 3.0),
-        (115, 2.9),
-        (116, 2.8),
-        (117, 2.7),
-        (118, 2.5),
-        (119, 2.3),
-        (120, 2.0),
-    ]);
-    traditional_value / distribution_table[&age]
+    let csv_file = File::open(csv_path).context("Minimum distribution file from IRS not found")?;
+    let mut header = Vec::new();
+    let mut distribution_table = HashMap::new();
+    for row_result in BufReader::new(csv_file).lines() {
+        let row = row_result?;
+        if row.contains(',') {
+            let row_split = row
+                .split(',')
+                .map(|value| value.to_string())
+                .collect::<Vec<String>>();
+            if row_split.len() > 1 {
+                    if header.is_empty() {
+                        header = row_split
+                    } else {
+                        ensure!(header.iter().take(2).collect::<Vec<&String>>() == ["Age", "Distribution Period"], "Header of distribution table ({:?}) does not match ['Age','Distribution Period']", header);
+                        distribution_table.insert(row_split[0].parse::<u8>()?, row_split[1].parse::<f32>()?);
+                }
+        }
+    }}
+
+    if distribution_table.contains_key(&age) {
+        Ok(traditional_value / distribution_table[&age])
+    }else{
+        Ok(0.0)
+    }
 }
