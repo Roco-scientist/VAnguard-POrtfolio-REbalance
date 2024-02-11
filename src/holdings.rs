@@ -101,9 +101,9 @@ impl StockSymbol {
     pub fn description(&self) -> String {
         let description_option = STOCK_DESCRIPTION.get(self);
         if let Some(description) = description_option {
-            return format!("{:?}: {}", self, description);
+            format!("{:?}: {}", self, description)
         } else {
-            return format!("No description for {:?}", self);
+            format!("No description for {:?}", self)
         }
     }
 }
@@ -624,11 +624,10 @@ impl ShareValues {
     ///
     /// ```
     pub fn add_stockinfo_value(&mut self, stock_info: StockInfo, add_type: AddType) {
-        let value;
-        match add_type {
-            AddType::StockPrice => value = stock_info.share_price,
-            AddType::HoldingValue => value = stock_info.total_value,
-        }
+        let value = match add_type {
+            AddType::StockPrice => stock_info.share_price,
+            AddType::HoldingValue => stock_info.total_value,
+        };
         match stock_info.symbol {
             StockSymbol::VXUS => self.vxus = value,
             StockSymbol::BNDX => self.bndx = value,
@@ -1055,7 +1054,7 @@ impl VanguardHoldings {
                 );
                 None
             } else {
-                let mut eoy_holdings = trad_holdings.clone();
+                let mut eoy_holdings = trad_holdings;
                 let today = Local::now().date();
                 let previous_year = NaiveDate::from_ymd_opt(today.year() - 1, 12, 31)?;
                 for transaction in &self.transactions {
@@ -1381,62 +1380,51 @@ pub async fn parse_csv_download(
                                 if stock_info.account_number == traditional_acct_num {
                                     traditional_shares
                                         .add_stock_value(stock_info.symbol, stock_info.shares);
-                                    // if let Some(mut traditional_shares) = traditional_shares_option {
-                                    //     traditional_shares.add_stock_value(stock_info.symbol, stock_info.shares);
-                                    // }else{
-                                    //     let mut shares = ShareValues::new();
-                                    //     shares.add_stock_value(stock_info.symbol, stock_info.shares);
-                                    //     traditional_shares_option = Some(shares);
-                                    // }
                                 }
                             }
                         }
                     }
+                } else if transaction_header.is_empty() {
+                    transaction_header = row_split
                 } else {
-                    if transaction_header.is_empty() {
-                        transaction_header = row_split
-                    } else {
-                        let mut account_num_option = None;
-                        let mut trade_date_option = None;
-                        let mut symbol_option = None;
-                        let mut shares_option = None;
-                        let mut net_amount_option = None;
-                        for (value, head) in row_split.iter().zip(&transaction_header) {
-                            match head.as_str() {
-                                "Account Number" => {
-                                    account_num_option = Some(value.parse::<u32>()?)
+                    let mut account_num_option = None;
+                    let mut trade_date_option = None;
+                    let mut symbol_option = None;
+                    let mut shares_option = None;
+                    let mut net_amount_option = None;
+                    for (value, head) in row_split.iter().zip(&transaction_header) {
+                        match head.as_str() {
+                            "Account Number" => account_num_option = Some(value.parse::<u32>()?),
+                            "Symbol" => {
+                                if value.chars().count() > 1 {
+                                    symbol_option = Some(StockSymbol::new(value))
+                                } else {
+                                    break;
                                 }
-                                "Symbol" => {
-                                    if value.chars().count() > 1 {
-                                        symbol_option = Some(StockSymbol::new(value))
-                                    } else {
-                                        break;
-                                    }
-                                }
-                                "Shares" => shares_option = Some(value.parse::<f32>()?),
-                                "Trade Date" => {
-                                    trade_date_option =
-                                        Some(NaiveDate::parse_from_str(value, "%Y-%m-%d")?)
-                                }
-                                "Net Amount" => net_amount_option = Some(value.parse::<f32>()?),
-                                _ => continue,
                             }
+                            "Shares" => shares_option = Some(value.parse::<f32>()?),
+                            "Trade Date" => {
+                                trade_date_option =
+                                    Some(NaiveDate::parse_from_str(value, "%Y-%m-%d")?)
+                            }
+                            "Net Amount" => net_amount_option = Some(value.parse::<f32>()?),
+                            _ => continue,
                         }
-                        if let Some(account_number) = account_num_option {
-                            if let Some(trad_account_num) = args.trad_acct_option {
-                                if trad_account_num == account_number {
-                                    if let Some(symbol) = symbol_option {
-                                        if let Some(shares) = shares_option {
-                                            if let Some(trade_date) = trade_date_option {
-                                                if let Some(net_amount) = net_amount_option {
-                                                    transactions.push(Transaction {
-                                                        _account_number: account_number,
-                                                        symbol,
-                                                        shares,
-                                                        trade_date,
-                                                        net_amount,
-                                                    })
-                                                }
+                    }
+                    if let Some(account_number) = account_num_option {
+                        if let Some(trad_account_num) = args.trad_acct_option {
+                            if trad_account_num == account_number {
+                                if let Some(symbol) = symbol_option {
+                                    if let Some(shares) = shares_option {
+                                        if let Some(trade_date) = trade_date_option {
+                                            if let Some(net_amount) = net_amount_option {
+                                                transactions.push(Transaction {
+                                                    _account_number: account_number,
+                                                    symbol,
+                                                    shares,
+                                                    trade_date,
+                                                    net_amount,
+                                                })
                                             }
                                         }
                                     }
