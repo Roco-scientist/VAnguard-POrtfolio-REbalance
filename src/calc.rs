@@ -132,7 +132,6 @@ fn retirement_calc(
     let sub_allocations = SubAllocations::new_custom(allocations)?;
 
     let mut holdings_value = 0.0;
-    let mut holdings_value = 0.0;
     let mut us_stock_add = 0.0;
     let mut us_bond_add = 0.0;
     let mut int_stock_add = 0.0;
