@@ -34,6 +34,7 @@ pub struct Args {
     pub output: bool,                  // Whether or not to output calculations to a txt file
     pub age_option: Option<u8>,        // age
     pub distribution_table_path: String,
+    pub use_brokerage_retirement: bool,
 }
 
 impl Args {
@@ -231,6 +232,12 @@ impl Args {
                     .help("Output to text file in current directory"),
             )
             .arg(
+                Arg::with_name("use_brokerage")
+                    .long("use-brokerage-retirement")
+                    .takes_value(false)
+                    .help("Balance the brokerage account as if it is part of the retirement accoutn"),
+            )
+            .arg(
                 Arg::with_name("age")
                     .long("age")
                     .takes_value(true)
@@ -362,6 +369,7 @@ impl Args {
             age_option = Some(age.parse::<u8>().unwrap())
         }
         let output = args.is_present("output");
+        let use_brokerage_retirement = args.is_present("use_brokerage");
         Args {
             csv_path,
             retirement_year_option,
@@ -390,6 +398,7 @@ impl Args {
             output,
             age_option,
             distribution_table_path,
+            use_brokerage_retirement,
         }
     }
 }
