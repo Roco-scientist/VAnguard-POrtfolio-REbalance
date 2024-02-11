@@ -28,8 +28,11 @@ async fn main() -> Result<()> {
     // TODO: need to calculate this from the value on December 31st of the previous year
     if let Some(age) = args.age_option {
         if let Some(traditional_value) = vanguard_holdings.eoy_value().await? {
-            let minimum_distribution =
-                vapore::calc::calculate_minimum_distribution(age, traditional_value, &args.distribution_table_path)?;
+            let minimum_distribution = vapore::calc::calculate_minimum_distribution(
+                age,
+                traditional_value,
+                &args.distribution_table_path,
+            )?;
             println!("\n\nEnd of year traditional IRA account value: ${:?}\nMinimum distribution: ${:.2}\n\n", traditional_value, minimum_distribution);
         }
     }

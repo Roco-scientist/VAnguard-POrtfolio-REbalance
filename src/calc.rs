@@ -1,5 +1,9 @@
-use anyhow::{ensure, Result, Context};
-use std::{collections::HashMap, io::{BufReader, BufRead}, fs::File};
+use anyhow::{ensure, Context, Result};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{BufRead, BufReader},
+};
 
 use crate::{
     arguments::Args,
@@ -221,7 +225,11 @@ fn retirement_calc(
 
 // Calculates the minimum distribution for an unmarried individual or someone without a spouse
 // greater than 10 years younger.
-pub fn calculate_minimum_distribution(age: u8, traditional_value: f32, csv_path: &str) -> Result<f32> {
+pub fn calculate_minimum_distribution(
+    age: u8,
+    traditional_value: f32,
+    csv_path: &str,
+) -> Result<f32> {
     // Distribution table retrieved from here appendix B: https://www.irs.gov/publications/p590b#en_US_2022_publink100090310
     // May need to periodically be updated
     let csv_file = File::open(csv_path).context("Minimum distribution file from IRS not found")?;
@@ -235,18 +243,20 @@ pub fn calculate_minimum_distribution(age: u8, traditional_value: f32, csv_path:
                 .map(|value| value.to_string())
                 .collect::<Vec<String>>();
             if row_split.len() > 1 {
-                    if header.is_empty() {
-                        header = row_split
-                    } else {
-                        ensure!(header.iter().take(2).collect::<Vec<&String>>() == ["Age", "Distribution Period"], "Header of distribution table ({:?}) does not match ['Age','Distribution Period']", header);
-                        distribution_table.insert(row_split[0].parse::<u8>()?, row_split[1].parse::<f32>()?);
+                if header.is_empty() {
+                    header = row_split
+                } else {
+                    ensure!(header.iter().take(2).collect::<Vec<&String>>() == ["Age", "Distribution Period"], "Header of distribution table ({:?}) does not match ['Age','Distribution Period']", header);
+                    distribution_table
+                        .insert(row_split[0].parse::<u8>()?, row_split[1].parse::<f32>()?);
                 }
+            }
         }
-    }}
+    }
 
     if distribution_table.contains_key(&age) {
         Ok(traditional_value / distribution_table[&age])
-    }else{
+    } else {
         Ok(0.0)
     }
 }

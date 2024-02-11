@@ -1032,6 +1032,8 @@ impl VanguardHoldings {
     pub fn transactions(&self) -> Vec<Transaction> {
         self.transactions.clone()
     }
+    // Calculated the previous end of year holdings value based on the holdings times the quotes
+    // from December 31st of the previous year.
     pub async fn eoy_value(&self) -> Result<Option<f32>> {
         if let Some(holdings) = self.eoy_traditional_holdings() {
             let mut quotes = ShareValues::new_quote();
@@ -1042,6 +1044,8 @@ impl VanguardHoldings {
             Ok(None)
         }
     }
+    // Takes the current holdings and subtracts all transaction since December 31st to come to the
+    // holdings at that date.
     fn eoy_traditional_holdings(&self) -> Option<ShareValues> {
         let mut enough_transaction = false;
         if let Some(trad_holdings) = self.traditional_shares_option {
@@ -1055,9 +1059,24 @@ impl VanguardHoldings {
                 let today = Local::now().date();
                 let previous_year = NaiveDate::from_ymd_opt(today.year() - 1, 12, 31)?;
                 for transaction in &self.transactions {
+                    // If the transaction is newer thand December 31st of the previous year,
+                    // subtract from the current holdings.  Also stores a true value if anything is
+                    // older to keep track whether or not enough transactions were pulled from
+                    // Vanguard to get to December 31st.
                     if transaction.trade_date > previous_year {
-                        eoy_holdings
-                            .subtract_stock_value(transaction.symbol.clone(), transaction.shares);
+                        // Cash is allocated in VMFXX.  These are not shares in the transaction, so
+                        // net amount needs to be subtracted
+                        if transaction.symbol == StockSymbol::VMFXX {
+                            eoy_holdings.subtract_stock_value(
+                                transaction.symbol.clone(),
+                                transaction.net_amount,
+                            );
+                        } else {
+                            eoy_holdings.subtract_stock_value(
+                                transaction.symbol.clone(),
+                                transaction.shares,
+                            );
+                        }
                     } else {
                         enough_transaction = true;
                     }
@@ -1292,26 +1311,12 @@ impl fmt::Display for VanguardRebalance {
 
 #[derive(Clone, Debug)]
 pub struct Transaction {
-    account_number: u32,
+    _account_number: u32,
     trade_date: NaiveDate,
-    // type: TransactionType,
     symbol: StockSymbol,
     shares: f32,
+    net_amount: f32,
 }
-
-// #[derive(Clone, Eq, Hash, PartialEq, Debug)]
-// enum TransactionType {
-//     BUY,
-//     SELL,
-//     FUNDS_IN,
-//     FOUNDS_OUT,
-//     SWEEP_IN,
-//     SWEEP_OUT,
-//     DIVIDEND,
-//     REINVESTMENT,
-//     CONVERSION_OUT,
-//     CONVERSION_IN,
-// }
 
 /// parse_csv_download takes in the file path of the downloaded file from Vanguard and parses it
 /// into VanguardHoldings.  The VanguardHoldings is a struct which holds the values of what is
@@ -1395,6 +1400,7 @@ pub async fn parse_csv_download(
                         let mut trade_date_option = None;
                         let mut symbol_option = None;
                         let mut shares_option = None;
+                        let mut net_amount_option = None;
                         for (value, head) in row_split.iter().zip(&transaction_header) {
                             match head.as_str() {
                                 "Account Number" => {
@@ -1412,21 +1418,25 @@ pub async fn parse_csv_download(
                                     trade_date_option =
                                         Some(NaiveDate::parse_from_str(value, "%Y-%m-%d")?)
                                 }
+                                "Net Amount" => net_amount_option = Some(value.parse::<f32>()?),
                                 _ => continue,
                             }
                         }
                         if let Some(account_number) = account_num_option {
-                            if let Some(symbol) = symbol_option {
-                                if let Some(shares) = shares_option {
-                                    if let Some(trade_date) = trade_date_option {
-                                        if let Some(trad_account_num) = args.trad_acct_option {
-                                            if trad_account_num == account_number {
-                                                transactions.push(Transaction {
-                                                    account_number,
-                                                    symbol,
-                                                    shares,
-                                                    trade_date,
-                                                })
+                            if let Some(trad_account_num) = args.trad_acct_option {
+                                if trad_account_num == account_number {
+                                    if let Some(symbol) = symbol_option {
+                                        if let Some(shares) = shares_option {
+                                            if let Some(trade_date) = trade_date_option {
+                                                if let Some(net_amount) = net_amount_option {
+                                                    transactions.push(Transaction {
+                                                        _account_number: account_number,
+                                                        symbol,
+                                                        shares,
+                                                        trade_date,
+                                                        net_amount,
+                                                    })
+                                                }
                                             }
                                         }
                                     }

@@ -239,7 +239,10 @@ impl Args {
             .get_matches();
 
         let csv_path = args.value_of("Vanguard-Download").unwrap().to_string();
-        let distribution_table_path = args.value_of("min-distribution").unwrap_or_default().to_string();
+        let distribution_table_path = args
+            .value_of("min-distribution")
+            .unwrap_or_default()
+            .to_string();
 
         let percent_stock_brokerage = args
             .value_of("percent-stock-brokerage")
