@@ -1,14 +1,15 @@
 use crate::asset::SubAllocations;
 use anyhow::{anyhow, Result};
-use futures::executor::block_on;
+use chrono::{Datelike, Local, NaiveDate};
 use std::{
     collections::HashMap,
     fmt,
     fs::File,
     io::{BufRead, BufReader},
-    ops::{Add, Div, Sub},
+    ops::{Add, Div, Mul, Sub},
     vec::Vec,
 };
+use time::{macros::format_description, OffsetDateTime};
 use yahoo_finance_api as yahoo;
 
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
@@ -25,6 +26,8 @@ lazy_static! {
         m.insert(StockSymbol::VWO, "Emerging markets stock");
         m.insert(StockSymbol::BNDX, "Total international bond");
         m.insert(StockSymbol::VTIP, "Inflation protected securities");
+        m.insert(StockSymbol::VTI, "Total domestic stock");
+        m.insert(StockSymbol::VTIVX, "2045 Retirement fund");
         m
     };
 }
@@ -44,6 +47,8 @@ pub enum StockSymbol {
     VTC,
     VV,
     VMFXX,
+    VTI,
+    VTIVX,
     Empty,
     Other(String),
 }
@@ -71,6 +76,8 @@ impl StockSymbol {
             "VTC" => StockSymbol::VTC,
             "VV" => StockSymbol::VV,
             "VMFXX" => StockSymbol::VMFXX,
+            "VTI" => StockSymbol::VTI,
+            "VTIVX" => StockSymbol::VTIVX,
             _ => {
                 eprintln!("{} is not supported within this algorithm\n", symbol);
                 StockSymbol::Other(symbol.to_string())
@@ -94,9 +101,9 @@ impl StockSymbol {
     pub fn description(&self) -> String {
         let description_option = STOCK_DESCRIPTION.get(self);
         if let Some(description) = description_option {
-            return format!("{:?}: {}", self, description);
+            format!("{:?}: {}", self, description)
         } else {
-            return format!("No description for {:?}", self);
+            format!("No description for {:?}", self)
         }
     }
 }
@@ -126,6 +133,8 @@ pub fn all_stock_descriptions() -> String {
         StockSymbol::VWO,
         StockSymbol::BNDX,
         StockSymbol::VTIP,
+        StockSymbol::VTI,
+        StockSymbol::VTIVX,
     ] {
         descriptions.push_str(&symbol.description());
         descriptions.push('\n')
@@ -139,10 +148,12 @@ pub struct StockInfo {
     pub account_number: u32,
     pub symbol: StockSymbol,
     pub share_price: f32,
+    pub shares: f32,
     pub total_value: f32,
     account_added: bool,
     symbol_added: bool,
     share_price_added: bool,
+    shares_added: bool,
     total_value_added: bool,
 }
 
@@ -162,10 +173,12 @@ impl StockInfo {
             account_number: 0,
             symbol: StockSymbol::Empty,
             share_price: 0.0,
+            shares: 0.0,
             total_value: 0.0,
             account_added: false,
             symbol_added: false,
             share_price_added: false,
+            shares_added: false,
             total_value_added: false,
         }
     }
@@ -224,6 +237,26 @@ impl StockInfo {
         self.share_price_added = true;
     }
 
+    /// add_share adds the stock total shares to the StockInfo struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vapore::holdings;
+    ///
+    /// let mut new_stock = holdings::StockInfo::new();
+    /// new_stock.add_account(123456789);
+    /// new_stock.add_symbol(holdings::StockSymbol::BND);
+    /// new_stock.add_share_price(234.50);
+    /// new_stock.add_shares(10.0)
+    ///
+    /// assert_eq!(new_stock.shares, 10.0);
+    /// ```
+    pub fn add_shares(&mut self, share_num: f32) {
+        self.shares = share_num;
+        self.shares_added = true;
+    }
+
     /// add_total_value adds the account total value of the stock to the StockInfo struct
     ///
     /// # Example
@@ -256,6 +289,7 @@ impl StockInfo {
     /// new_stock.add_symbol(holdings::StockSymbol::BND);
     /// new_stock.add_share_price(234.50);
     /// new_stock.add_total_value(5000.00);
+    /// new_stock.add_shares(10.0);
     ///
     /// assert!(new_stock.finished());
     ///
@@ -267,6 +301,7 @@ impl StockInfo {
             self.account_added,
             self.symbol_added,
             self.share_price_added,
+            self.shares_added,
             self.total_value_added,
         ]
         .iter()
@@ -280,7 +315,7 @@ impl Default for StockInfo {
     }
 }
 
-pub fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
+pub async fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
     let stock_str = match stock_symbol {
         StockSymbol::VO => "VO",
         StockSymbol::VB => "VB",
@@ -291,14 +326,51 @@ pub fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
         StockSymbol::VXUS => "VXUS",
         StockSymbol::BNDX => "BNDX",
         StockSymbol::VTIP => "VTIP",
+        StockSymbol::VTI => "VTI",
+        StockSymbol::VTIVX => "VTIVX",
         _ => "none",
     };
     if stock_str == "none" {
         anyhow!("Stock symbol not supported for yahoo retrieval");
+        Ok(0.0)
+    } else {
+        let provider = yahoo::YahooConnector::new();
+        let response = provider.get_latest_quotes(stock_str, "1m").await?;
+        Ok(response.last_quote()?.close as f32)
     }
-    let provider = yahoo::YahooConnector::new();
-    let response = block_on(provider.get_latest_quotes(stock_str, "1m"))?;
-    Ok(response.last_quote()?.close as f32)
+}
+
+pub async fn get_yahoo_eoy_quote(stock_symbol: StockSymbol) -> Result<f32> {
+    let stock_str = match stock_symbol {
+        StockSymbol::VO => "VO",
+        StockSymbol::VB => "VB",
+        StockSymbol::VV => "VV",
+        StockSymbol::BND => "BND",
+        StockSymbol::VWO => "VWO",
+        StockSymbol::VTC => "VTC",
+        StockSymbol::VXUS => "VXUS",
+        StockSymbol::BNDX => "BNDX",
+        StockSymbol::VTIP => "VTIP",
+        StockSymbol::VTI => "VTI",
+        StockSymbol::VTIVX => "VTIVX",
+        _ => "none",
+    };
+    if stock_str == "none" {
+        anyhow!("Stock symbol not supported for yahoo retrieval");
+        Ok(0.0)
+    } else {
+        let provider = yahoo::YahooConnector::new();
+        let format = format_description!(
+            "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour sign:mandatory]"
+        );
+        let today = OffsetDateTime::now_utc();
+        let start =
+            OffsetDateTime::parse(&format!("{}-12-25 00:00:01 -05", today.year() - 1), format)?;
+        let stop =
+            OffsetDateTime::parse(&format!("{}-12-31 23:59:59 -05", today.year() - 1), format)?;
+        let response = provider.get_quote_history(stock_str, start, stop).await?;
+        Ok(response.quotes()?.last().unwrap().close as f32)
+    }
 }
 
 /// AddType is an enum used to distinguish between when a stock quote or an account holdings is
@@ -321,6 +393,8 @@ pub struct ShareValues {
     vtc: f32,
     vv: f32,
     vtip: f32,
+    vti: f32,
+    vtivx: f32,
     vmfxx: f32,
     outside_bond: f32,
     outside_stock: f32,
@@ -341,6 +415,8 @@ impl ShareValues {
             vxus: 0.0,
             bndx: 0.0,
             vtip: 0.0,
+            vti: 0.0,
+            vtivx: 0.0,
             bnd: 0.0,
             vwo: 0.0,
             vo: 0.0,
@@ -351,6 +427,27 @@ impl ShareValues {
             outside_bond: 0.0,
             outside_stock: 0.0,
         }
+    }
+
+    pub fn value_added(&self, default_value: f32) -> bool {
+        [
+            self.vxus,
+            self.bndx,
+            self.vtip,
+            self.vti,
+            self.vtivx,
+            self.bnd,
+            self.vwo,
+            self.vo,
+            self.vb,
+            self.vtc,
+            self.vv,
+            self.vmfxx,
+            self.outside_bond,
+            self.outside_stock,
+        ]
+        .iter()
+        .any(|val| val != &default_value)
     }
     /// new_quote creates a new ShareValues struct where all values are set to 1.  This is used for
     /// creating a new struct for stock quotes.  This way if any quotes are missing, they are
@@ -369,6 +466,8 @@ impl ShareValues {
             vxus: 1.0,
             bndx: 1.0,
             vtip: 1.0,
+            vti: 1.0,
+            vtivx: 1.0,
             bnd: 1.0,
             vwo: 1.0,
             vo: 1.0,
@@ -381,7 +480,7 @@ impl ShareValues {
         }
     }
 
-    pub fn add_missing_quotes(&mut self) -> Result<()> {
+    pub async fn add_missing_quotes(&mut self) -> Result<()> {
         for stock_symbol in [
             StockSymbol::VV,
             StockSymbol::VO,
@@ -392,9 +491,33 @@ impl ShareValues {
             StockSymbol::VWO,
             StockSymbol::BNDX,
             StockSymbol::VTIP,
+            StockSymbol::VTI,
+            StockSymbol::VTIVX,
         ] {
             if self.stock_value(stock_symbol.clone()) == 1.0 {
-                let new_quote = get_yahoo_quote(stock_symbol.clone())?;
+                let new_quote = get_yahoo_quote(stock_symbol.clone()).await?;
+                self.add_stock_value(stock_symbol, new_quote);
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn add_missing_eoy_quotes(&mut self) -> Result<()> {
+        for stock_symbol in [
+            StockSymbol::VV,
+            StockSymbol::VO,
+            StockSymbol::VB,
+            StockSymbol::VTC,
+            StockSymbol::BND,
+            StockSymbol::VXUS,
+            StockSymbol::VWO,
+            StockSymbol::BNDX,
+            StockSymbol::VTIP,
+            StockSymbol::VTI,
+            StockSymbol::VTIVX,
+        ] {
+            if self.stock_value(stock_symbol.clone()) == 1.0 {
+                let new_quote = get_yahoo_eoy_quote(stock_symbol.clone()).await?;
                 self.add_stock_value(stock_symbol, new_quote);
             }
         }
@@ -464,6 +587,8 @@ impl ShareValues {
             vtc: vtc_value,
             vv: vv_value,
             vtip: vtip_value,
+            vti: 0.0,
+            vtivx: 0.0,
             vmfxx: 0.0,
             outside_bond: other_int_bond_value + other_us_bond_value,
             outside_stock: other_us_stock_value + other_int_stock_value,
@@ -499,15 +624,16 @@ impl ShareValues {
     ///
     /// ```
     pub fn add_stockinfo_value(&mut self, stock_info: StockInfo, add_type: AddType) {
-        let value;
-        match add_type {
-            AddType::StockPrice => value = stock_info.share_price,
-            AddType::HoldingValue => value = stock_info.total_value,
-        }
+        let value = match add_type {
+            AddType::StockPrice => stock_info.share_price,
+            AddType::HoldingValue => stock_info.total_value,
+        };
         match stock_info.symbol {
             StockSymbol::VXUS => self.vxus = value,
             StockSymbol::BNDX => self.bndx = value,
             StockSymbol::VTIP => self.vtip = value,
+            StockSymbol::VTI => self.vti = value,
+            StockSymbol::VTIVX => self.vtivx = value,
             StockSymbol::BND => self.bnd = value,
             StockSymbol::VWO => self.vwo = value,
             StockSymbol::VO => self.vo = value,
@@ -543,6 +669,8 @@ impl ShareValues {
             StockSymbol::VXUS => self.vxus = value,
             StockSymbol::BNDX => self.bndx = value,
             StockSymbol::VTIP => self.vtip = value,
+            StockSymbol::VTI => self.vti = value,
+            StockSymbol::VTIVX => self.vtivx = value,
             StockSymbol::BND => self.bnd = value,
             StockSymbol::VWO => self.vwo = value,
             StockSymbol::VO => self.vo = value,
@@ -575,6 +703,25 @@ impl ShareValues {
         self.outside_bond
     }
 
+    pub fn subtract_stock_value(&mut self, stock_symbol: StockSymbol, value: f32) {
+        match stock_symbol {
+            StockSymbol::VXUS => self.vxus -= value,
+            StockSymbol::BNDX => self.bndx -= value,
+            StockSymbol::VTIP => self.vtip -= value,
+            StockSymbol::VTI => self.vti -= value,
+            StockSymbol::VTIVX => self.vtivx -= value,
+            StockSymbol::BND => self.bnd -= value,
+            StockSymbol::VWO => self.vwo -= value,
+            StockSymbol::VO => self.vo -= value,
+            StockSymbol::VB => self.vb -= value,
+            StockSymbol::VTC => self.vtc -= value,
+            StockSymbol::VV => self.vv -= value,
+            StockSymbol::VMFXX => self.vmfxx -= value,
+            StockSymbol::Empty => panic!("Stock symbol not set before adding value"),
+            StockSymbol::Other(_) => (),
+        }
+    }
+
     /// stock_value retrieves the stored stock value within the ShareValues struct
     ///
     /// # Panic
@@ -598,6 +745,8 @@ impl ShareValues {
             StockSymbol::VXUS => self.vxus,
             StockSymbol::BNDX => self.bndx,
             StockSymbol::VTIP => self.vtip,
+            StockSymbol::VTI => self.vti,
+            StockSymbol::VTIVX => self.vtivx,
             StockSymbol::BND => self.bnd,
             StockSymbol::VWO => self.vwo,
             StockSymbol::VO => self.vo,
@@ -636,6 +785,8 @@ impl ShareValues {
             + self.vv
             + self.vmfxx
             + self.vtip
+            + self.vti
+            + self.vtivx
     }
 
     /// percent_stock_bond_infl calculates the percent of stock, bond, and inflation protected
@@ -667,6 +818,8 @@ impl Add for ShareValues {
             vxus: self.vxus + other.vxus,
             bndx: self.bndx + other.bndx,
             vtip: self.vtip + other.vtip,
+            vti: self.vti + other.vti,
+            vtivx: self.vtivx + other.vtivx,
             bnd: self.bnd + other.bnd,
             vwo: self.vwo + other.vwo,
             vo: self.vo + other.vo,
@@ -688,6 +841,8 @@ impl Sub for ShareValues {
             vxus: self.vxus - other.vxus,
             bndx: self.bndx - other.bndx,
             vtip: self.vtip - other.vtip,
+            vti: self.vti - other.vti,
+            vtivx: self.vtivx - other.vtivx,
             bnd: self.bnd - other.bnd,
             vwo: self.vwo - other.vwo,
             vo: self.vo - other.vo,
@@ -709,6 +864,8 @@ impl Div for ShareValues {
             vxus: self.vxus / other.vxus,
             bndx: self.bndx / other.bndx,
             vtip: self.vtip / other.vtip,
+            vti: self.vti / other.vti,
+            vtivx: self.vtivx / other.vtivx,
             bnd: self.bnd / other.bnd,
             vwo: self.vwo / other.vwo,
             vo: self.vo / other.vo,
@@ -718,6 +875,29 @@ impl Div for ShareValues {
             vmfxx: self.vmfxx / other.vmfxx,
             outside_bond: self.outside_bond / other.outside_bond,
             outside_stock: self.outside_stock / other.outside_stock,
+        }
+    }
+}
+
+impl Mul for ShareValues {
+    type Output = ShareValues;
+
+    fn mul(self, other: ShareValues) -> ShareValues {
+        ShareValues {
+            vxus: self.vxus * other.vxus,
+            bndx: self.bndx * other.bndx,
+            vtip: self.vtip * other.vtip,
+            vti: self.vti * other.vti,
+            vtivx: self.vtivx * other.vtivx,
+            bnd: self.bnd * other.bnd,
+            vwo: self.vwo * other.vwo,
+            vo: self.vo * other.vo,
+            vb: self.vb * other.vb,
+            vtc: self.vtc * other.vtc,
+            vv: self.vv * other.vv,
+            vmfxx: self.vmfxx * other.vmfxx,
+            outside_bond: self.outside_bond * other.outside_bond,
+            outside_stock: self.outside_stock * other.outside_stock,
         }
     }
 }
@@ -739,6 +919,8 @@ impl fmt::Display for ShareValues {
             VWO              {:.2}\n\
             BNDX             {:.2}\n\
             VTIP             {:.2}\n\
+            VTI              {:.2}\n\
+            VTIVX            {:.2}\n\
             -------------------------------\n\
             Cash             {:.2}\n\
             Total            {:.2}\n\
@@ -756,6 +938,8 @@ impl fmt::Display for ShareValues {
             self.vwo,
             self.bndx,
             self.vtip,
+            self.vti,
+            self.vtivx,
             self.vmfxx,
             self.total_value(),
             self.outside_stock,
@@ -775,12 +959,14 @@ pub enum HoldingType {
 
 /// VanguardHoldings contains ShareValues structs for all accounts along with for the quotes.  This
 /// struct is creating during the parsing of the downloaded Vanguard file
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VanguardHoldings {
     brokerage: Option<ShareValues>,
     traditional_ira: Option<ShareValues>,
     roth_ira: Option<ShareValues>,
     quotes: ShareValues,
+    transactions: Vec<Transaction>,
+    traditional_shares_option: Option<ShareValues>,
 }
 
 impl VanguardHoldings {
@@ -802,6 +988,8 @@ impl VanguardHoldings {
             traditional_ira: None,
             roth_ira: None,
             quotes,
+            transactions: Vec::new(),
+            traditional_shares_option: None,
         }
     }
 
@@ -828,24 +1016,6 @@ impl VanguardHoldings {
         }
     }
 
-    /// add_holding adds a new account to the VanguardHoldings struct
-    ///
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use vapore::holdings;
-    ///
-    /// let new_quotes = holdings::ShareValues::new_quote();
-    ///
-    /// let new_values = holdings::ShareValues::new();
-    ///
-    /// let mut new_vanguard = holdings::VanguardHoldings::new(new_quotes);
-    /// new_vanguard.add_holding(new_values, holdings::HoldingType::Brokerage);
-    ///
-    /// let new_values_comp = holdings::ShareValues::new();
-    /// assert_eq!(new_vanguard.brokerage_holdings(), Some(new_values_comp));
-    /// ```
     pub fn brokerage_holdings(&self) -> Option<ShareValues> {
         self.brokerage
     }
@@ -857,6 +1027,67 @@ impl VanguardHoldings {
     }
     pub fn stock_quotes(&self) -> ShareValues {
         self.quotes
+    }
+    pub fn transactions(&self) -> Vec<Transaction> {
+        self.transactions.clone()
+    }
+    // Calculated the previous end of year holdings value based on the holdings times the quotes
+    // from December 31st of the previous year.
+    pub async fn eoy_value(&self) -> Result<Option<f32>> {
+        if let Some(holdings) = self.eoy_traditional_holdings() {
+            let mut quotes = ShareValues::new_quote();
+            quotes.add_missing_eoy_quotes().await?;
+            let eoy_value = (holdings * quotes).total_value();
+            Ok(Some(eoy_value))
+        } else {
+            Ok(None)
+        }
+    }
+    // Takes the current holdings and subtracts all transaction since December 31st to come to the
+    // holdings at that date.
+    fn eoy_traditional_holdings(&self) -> Option<ShareValues> {
+        let mut enough_transaction = false;
+        if let Some(trad_holdings) = self.traditional_shares_option {
+            if self.transactions.is_empty() {
+                eprintln!(
+                    "No transactions found to calculate EOY holdings for minimum distribution"
+                );
+                None
+            } else {
+                let mut eoy_holdings = trad_holdings;
+                let today = Local::now().date();
+                let previous_year = NaiveDate::from_ymd_opt(today.year() - 1, 12, 31)?;
+                for transaction in &self.transactions {
+                    // If the transaction is newer thand December 31st of the previous year,
+                    // subtract from the current holdings.  Also stores a true value if anything is
+                    // older to keep track whether or not enough transactions were pulled from
+                    // Vanguard to get to December 31st.
+                    if transaction.trade_date > previous_year {
+                        // Cash is allocated in VMFXX.  These are not shares in the transaction, so
+                        // net amount needs to be subtracted
+                        if transaction.symbol == StockSymbol::VMFXX {
+                            eoy_holdings.subtract_stock_value(
+                                transaction.symbol.clone(),
+                                transaction.net_amount,
+                            );
+                        } else {
+                            eoy_holdings.subtract_stock_value(
+                                transaction.symbol.clone(),
+                                transaction.shares,
+                            );
+                        }
+                    } else {
+                        enough_transaction = true;
+                    }
+                }
+                if !enough_transaction {
+                    eprintln!("Possibly not enough history in the downloaded Vanguard CSV to accurately calculate end of year holdings")
+                }
+                Some(eoy_holdings)
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -928,6 +1159,8 @@ impl fmt::Display for AccountHoldings {
             VWO      {:<15.2}${:<15.2}${:<15.2}\n\
             BNDX     {:<15.2}${:<15.2}${:<15.2}\n\
             VTIP     {:<15.2}${:<15.2}${:<15.2}\n\
+            VTI      {:<15.2}${:<15.2}${:<15.2}\n\
+            VTIVX    {:<15.2}${:<15.2}${:<15.2}\n\
             ------------------------------------------------------\n\
             Cash                    ${:<15.2}${:<15.2}\n\
             Total                   ${:<15.2}\n\
@@ -962,6 +1195,12 @@ impl fmt::Display for AccountHoldings {
             self.sale_purchases_needed.vtip,
             self.current.vtip,
             self.target.vtip,
+            self.sale_purchases_needed.vti,
+            self.current.vti,
+            self.target.vti,
+            self.sale_purchases_needed.vtivx,
+            self.current.vtivx,
+            self.target.vtivx,
             self.current.vmfxx,
             self.target.vmfxx,
             self.current.total_value(),
@@ -1069,17 +1308,31 @@ impl fmt::Display for VanguardRebalance {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Transaction {
+    _account_number: u32,
+    trade_date: NaiveDate,
+    symbol: StockSymbol,
+    shares: f32,
+    net_amount: f32,
+}
+
 /// parse_csv_download takes in the file path of the downloaded file from Vanguard and parses it
 /// into VanguardHoldings.  The VanguardHoldings is a struct which holds the values of what is
 /// contained within the vangaurd account along with quotes for each of the ETFs
-pub fn parse_csv_download(
+pub async fn parse_csv_download(
     csv_path: &str,
     args: crate::arguments::Args,
 ) -> Result<VanguardHoldings> {
     let mut header = Vec::new();
+    let mut transaction_header = Vec::new();
     let csv_file = File::open(csv_path)?;
     let mut accounts: HashMap<u32, ShareValues> = HashMap::new();
     let mut quotes = ShareValues::new_quote();
+    let mut traditional_shares = ShareValues::new();
+
+    let mut holdings_row = true;
+    let mut transactions = Vec::new();
 
     // iterate through all of the rows of the vanguard downlaoaded file and add the information to
     // StockInfo structs, which then are aggregated into the accounts hashmap where the account
@@ -1088,36 +1341,103 @@ pub fn parse_csv_download(
         let row = row_result?;
         if row.contains(',') {
             if row.contains("Trade Date") {
-                break;
+                holdings_row = false;
             }
             let row_split = row
                 .split(',')
                 .map(|value| value.to_string())
                 .collect::<Vec<String>>();
-            let mut stock_info = StockInfo::new();
-            if header.is_empty() {
-                header = row_split
-            } else {
-                for (value, head) in row_split.iter().zip(&header) {
-                    match head.as_str() {
-                        "Account Number" => stock_info.add_account(value.parse::<u32>()?),
-                        "Symbol" => stock_info.add_symbol(StockSymbol::new(value)),
-                        "Share Price" => stock_info.add_share_price(value.parse::<f32>()?),
-                        "Total Value" => stock_info.add_total_value(value.parse::<f32>()?),
-                        _ => continue,
+            if row_split.len() > 4 {
+                if holdings_row {
+                    let mut stock_info = StockInfo::new();
+                    if header.is_empty() {
+                        header = row_split
+                    } else {
+                        for (value, head) in row_split.iter().zip(&header) {
+                            match head.as_str() {
+                                "Account Number" => stock_info.add_account(value.parse::<u32>()?),
+                                "Symbol" => {
+                                    if value.chars().count() > 1 {
+                                        stock_info.add_symbol(StockSymbol::new(value))
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                "Shares" => stock_info.add_shares(value.parse::<f32>()?),
+                                "Share Price" => stock_info.add_share_price(value.parse::<f32>()?),
+                                "Total Value" => stock_info.add_total_value(value.parse::<f32>()?),
+                                _ => continue,
+                            }
+                        }
+                        if stock_info.finished() {
+                            let account_value = accounts
+                                .entry(stock_info.account_number)
+                                .or_insert_with(ShareValues::new);
+                            account_value
+                                .add_stockinfo_value(stock_info.clone(), AddType::HoldingValue);
+                            quotes.add_stockinfo_value(stock_info.clone(), AddType::StockPrice);
+                            if let Some(traditional_acct_num) = args.trad_acct_option {
+                                if stock_info.account_number == traditional_acct_num {
+                                    traditional_shares
+                                        .add_stock_value(stock_info.symbol, stock_info.shares);
+                                }
+                            }
+                        }
                     }
-                }
-                if stock_info.finished() {
-                    let account_value = accounts
-                        .entry(stock_info.account_number)
-                        .or_insert_with(ShareValues::new);
-                    account_value.add_stockinfo_value(stock_info.clone(), AddType::HoldingValue);
-                    quotes.add_stockinfo_value(stock_info, AddType::StockPrice);
+                } else if transaction_header.is_empty() {
+                    transaction_header = row_split
+                } else {
+                    let mut account_num_option = None;
+                    let mut trade_date_option = None;
+                    let mut symbol_option = None;
+                    let mut shares_option = None;
+                    let mut net_amount_option = None;
+                    for (value, head) in row_split.iter().zip(&transaction_header) {
+                        match head.as_str() {
+                            "Account Number" => account_num_option = Some(value.parse::<u32>()?),
+                            "Symbol" => {
+                                if value.chars().count() > 1 {
+                                    symbol_option = Some(StockSymbol::new(value))
+                                } else {
+                                    break;
+                                }
+                            }
+                            "Shares" => shares_option = Some(value.parse::<f32>()?),
+                            "Trade Date" => {
+                                trade_date_option =
+                                    Some(NaiveDate::parse_from_str(value, "%Y-%m-%d")?)
+                            }
+                            "Net Amount" => net_amount_option = Some(value.parse::<f32>()?),
+                            _ => continue,
+                        }
+                    }
+                    if let Some(account_number) = account_num_option {
+                        if let Some(trad_account_num) = args.trad_acct_option {
+                            if trad_account_num == account_number {
+                                if let Some(symbol) = symbol_option {
+                                    if let Some(shares) = shares_option {
+                                        if let Some(trade_date) = trade_date_option {
+                                            if let Some(net_amount) = net_amount_option {
+                                                transactions.push(Transaction {
+                                                    _account_number: account_number,
+                                                    symbol,
+                                                    shares,
+                                                    trade_date,
+                                                    net_amount,
+                                                })
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
-    quotes.add_missing_quotes()?;
+
+    quotes.add_missing_quotes().await?;
 
     let account_numbers = accounts.keys().cloned().collect::<Vec<u32>>();
 
@@ -1167,10 +1487,18 @@ pub fn parse_csv_download(
             );
         }
     }
+
+    let traditional_shares_option = if traditional_shares.value_added(0.0) {
+        Some(traditional_shares)
+    } else {
+        None
+    };
     Ok(VanguardHoldings {
         brokerage,
         traditional_ira,
         roth_ira,
         quotes,
+        transactions,
+        traditional_shares_option,
     })
 }
