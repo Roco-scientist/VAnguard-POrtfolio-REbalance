@@ -44,7 +44,7 @@ impl Allocations {
                 year
             )
         );
-        let this_year = chrono::Local::today().year();
+        let this_year = chrono::Local::now().year();
         let years_to_retirement = (year - this_year) as f32;
         let mut total_stock = 90.0;
         let mut total_bond = 10.0;

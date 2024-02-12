@@ -331,7 +331,7 @@ pub async fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
         _ => "none",
     };
     if stock_str == "none" {
-        anyhow!("Stock symbol not supported for yahoo retrieval");
+        eprintln!("Stock symbol not supported for yahoo retrieval");
         Ok(0.0)
     } else {
         let provider = yahoo::YahooConnector::new();
@@ -356,7 +356,7 @@ pub async fn get_yahoo_eoy_quote(stock_symbol: StockSymbol) -> Result<f32> {
         _ => "none",
     };
     if stock_str == "none" {
-        anyhow!("Stock symbol not supported for yahoo retrieval");
+        eprintln!("Stock symbol not supported for yahoo retrieval");
         Ok(0.0)
     } else {
         let provider = yahoo::YahooConnector::new();
@@ -1055,7 +1055,7 @@ impl VanguardHoldings {
                 None
             } else {
                 let mut eoy_holdings = trad_holdings;
-                let today = Local::now().date();
+                let today = Local::now().date_naive();
                 let previous_year = NaiveDate::from_ymd_opt(today.year() - 1, 12, 31)?;
                 for transaction in &self.transactions {
                     // If the transaction is newer thand December 31st of the previous year,
