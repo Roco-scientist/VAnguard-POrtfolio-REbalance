@@ -33,7 +33,7 @@ pub struct Args {
     pub trad_acct_option: Option<u32>, // Vanguard traditional IRA account number
     pub roth_acct_option: Option<u32>, // Vanguard roth IRA account number
     pub output: bool,                  // Whether or not to output calculations to a txt file
-    pub age_option: Option<u8>,        // age
+    pub age_option: Option<u32>,        // age
     pub distribution_year: u32,        // age
     pub distribution_table_path: String,
     pub use_brokerage_retirement: bool,
@@ -241,10 +241,10 @@ impl Args {
                     .help("Balance the brokerage account as if it is part of the retirement accoutn"),
             )
             .arg(
-                Arg::with_name("age")
-                    .long("age")
+                Arg::with_name("birth_year")
+                    .long("birth-year")
                     .takes_value(true)
-                    .help("Age which is used to calculate minimum distribution"),
+                    .help("Birth year is used to calculate minimum distribution"),
             )
             .arg(
                 Arg::with_name("distribution_year")
@@ -380,8 +380,8 @@ impl Args {
             roth_acct_option = Some(roth_acct_str.parse::<u32>().unwrap())
         }
         let mut age_option = None;
-        if let Some(age) = args.value_of("age") {
-            age_option = Some(age.parse::<u8>().unwrap())
+        if let Some(birth_year) = args.value_of("birth_year") {
+            age_option = Some(distribution_year - birth_year.parse::<u32>().unwrap())
         }
         let output = args.is_present("output");
         let use_brokerage_retirement = args.is_present("use_brokerage");

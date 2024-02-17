@@ -331,7 +331,7 @@ fn retirement_calc(
 // Calculates the minimum distribution for an unmarried individual or someone without a spouse
 // greater than 10 years younger.
 pub fn calculate_minimum_distribution(
-    age: u8,
+    age: u32,
     traditional_value: f32,
     csv_path: &str,
 ) -> Result<f32> {
@@ -353,7 +353,7 @@ pub fn calculate_minimum_distribution(
                 } else {
                     ensure!(header.iter().take(2).collect::<Vec<&String>>() == ["Age", "Distribution Period"], "Header of distribution table ({:?}) does not match ['Age','Distribution Period']", header);
                     distribution_table
-                        .insert(row_split[0].parse::<u8>()?, row_split[1].parse::<f32>()?);
+                        .insert(row_split[0].parse::<u32>()?, row_split[1].parse::<f32>()?);
                 }
             }
         }
