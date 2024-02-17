@@ -27,13 +27,13 @@ async fn main() -> Result<()> {
     // If an age is given, print the minumum distribution needed for the year
     // TODO: need to calculate this from the value on December 31st of the previous year
     if let Some(age) = args.age_option {
-        if let Some(traditional_value) = vanguard_holdings.eoy_value().await? {
+        if let Some(traditional_value) = vanguard_holdings.eoy_value(args.distribution_year).await? {
             let minimum_distribution = vapore::calc::calculate_minimum_distribution(
                 age,
                 traditional_value,
                 &args.distribution_table_path,
             )?;
-            println!("\n\nEnd of year traditional IRA account value: ${:?}\nMinimum distribution: ${:.2}\nDistribution so far: ${:.2}\nDistribution needed: ${:.2}\n\n", traditional_value, minimum_distribution, vanguard_holdings.distributions(), (minimum_distribution - vanguard_holdings.distributions()).max(0.0));
+            println!("\n\nEnd of previous year traditional IRA account value: ${:?}\nMinimum distribution for {}: ${:.2}\nDistribution so far: ${:.2}\nDistribution needed: ${:.2}\n\n", traditional_value, args.distribution_year, minimum_distribution, vanguard_holdings.distributions(), (minimum_distribution - vanguard_holdings.distributions()).max(0.0));
         }
     }
     //    .unwrap_or_else(|err| panic!("Holdings error: {}", err));

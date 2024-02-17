@@ -1,4 +1,5 @@
 use clap::{crate_version, App, Arg};
+use time::OffsetDateTime;
 
 /// Args struct holds all CLI argument values passed
 ///
@@ -33,12 +34,14 @@ pub struct Args {
     pub roth_acct_option: Option<u32>, // Vanguard roth IRA account number
     pub output: bool,                  // Whether or not to output calculations to a txt file
     pub age_option: Option<u8>,        // age
+    pub distribution_year: u32,        // age
     pub distribution_table_path: String,
     pub use_brokerage_retirement: bool,
 }
 
 impl Args {
     pub fn new() -> Self {
+        let this_year = OffsetDateTime::now_utc().year().to_string();
         let args = App::new("Vanguard Stock Adjustment")
             .version(crate_version!())
             .author("Rory Coffey <coffeyrt@gmail.com")
@@ -243,6 +246,13 @@ impl Args {
                     .takes_value(true)
                     .help("Age which is used to calculate minimum distribution"),
             )
+            .arg(
+                Arg::with_name("distribution_year")
+                    .long("distribution-year")
+                    .takes_value(true)
+                    .default_value(&this_year)
+                    .help("Year for which the distribution is to be calculated"),
+            )
             .get_matches();
 
         let csv_path = args.value_of("Vanguard-Download").unwrap().to_string();
@@ -338,6 +348,11 @@ impl Args {
             .unwrap()
             .parse::<f32>()
             .unwrap();
+        let distribution_year = args
+            .value_of("distribution_year")
+            .unwrap()
+            .parse::<u32>()
+            .unwrap();
 
         let mut retirement_year_option = None;
         if let Some(retirement_year) = args.value_of("retirement-year") {
@@ -397,6 +412,7 @@ impl Args {
             roth_acct_option,
             output,
             age_option,
+            distribution_year,
             distribution_table_path,
             use_brokerage_retirement,
         }

@@ -1,15 +1,15 @@
 use crate::asset::SubAllocations;
 use anyhow::{anyhow, Context, Result};
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{NaiveDate, Duration};
 use std::{
     collections::HashMap,
     fmt,
     fs::File,
     io::{BufRead, BufReader},
     ops::{Add, Div, Mul, Sub},
-    vec::Vec,
+    vec::Vec, 
 };
-use time::{macros::format_description, Duration, OffsetDateTime};
+use time::{macros::format_description, OffsetDateTime};
 use yahoo_finance_api as yahoo;
 
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
@@ -345,7 +345,7 @@ pub async fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
             Ok(response.last_quote()?.close as f32)
         } else {
             let today = OffsetDateTime::now_utc();
-            let week_ago = today - Duration::days(7);
+            let week_ago = today - time::Duration::days(7);
             let response = provider
                 .get_quote_history(stock_str, week_ago, today)
                 .await
@@ -357,7 +357,7 @@ pub async fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
     }
 }
 
-pub async fn get_yahoo_eoy_quote(stock_symbol: StockSymbol) -> Result<f32> {
+pub async fn get_yahoo_eoy_quote(stock_symbol: StockSymbol, year: u32) -> Result<f32> {
     let stock_str = match stock_symbol {
         StockSymbol::VO => "VO",
         StockSymbol::VB => "VB",
@@ -380,11 +380,10 @@ pub async fn get_yahoo_eoy_quote(stock_symbol: StockSymbol) -> Result<f32> {
         let format = format_description!(
             "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour sign:mandatory]"
         );
-        let today = OffsetDateTime::now_utc();
         let start =
-            OffsetDateTime::parse(&format!("{}-12-25 00:00:01 -05", today.year() - 1), format)?;
+            OffsetDateTime::parse(&format!("{}-12-25 00:00:01 -05", year), format)?;
         let stop =
-            OffsetDateTime::parse(&format!("{}-12-31 23:59:59 -05", today.year() - 1), format)?;
+            OffsetDateTime::parse(&format!("{}-12-31 23:59:59 -05", year), format)?;
         let response = provider
             .get_quote_history(stock_str, start, stop)
             .await
@@ -522,7 +521,7 @@ impl ShareValues {
         Ok(())
     }
 
-    pub async fn add_missing_eoy_quotes(&mut self) -> Result<()> {
+    pub async fn add_missing_eoy_quotes(&mut self, year: u32) -> Result<()> {
         for stock_symbol in [
             StockSymbol::VV,
             StockSymbol::VO,
@@ -537,7 +536,7 @@ impl ShareValues {
             StockSymbol::VTIVX,
         ] {
             if self.stock_value(stock_symbol.clone()) == 1.0 {
-                let new_quote = get_yahoo_eoy_quote(stock_symbol.clone()).await?;
+                let new_quote = get_yahoo_eoy_quote(stock_symbol.clone(), year).await?;
                 self.add_stock_value(stock_symbol, new_quote);
             }
         }
@@ -1058,10 +1057,10 @@ impl VanguardHoldings {
     }
     // Calculated the previous end of year holdings value based on the holdings times the quotes
     // from December 31st of the previous year.
-    pub async fn eoy_value(&mut self) -> Result<Option<f32>> {
-        if let Some(holdings) = self.eoy_traditional_holdings() {
+    pub async fn eoy_value(&mut self, year: u32) -> Result<Option<f32>> {
+        if let Some(holdings) = self.eoy_traditional_holdings(year) {
             let mut quotes = ShareValues::new_quote();
-            quotes.add_missing_eoy_quotes().await?;
+            quotes.add_missing_eoy_quotes(year - 1).await?;
             let eoy_value = (holdings * quotes).total_value();
             Ok(Some(eoy_value))
         } else {
@@ -1070,7 +1069,7 @@ impl VanguardHoldings {
     }
     // Takes the current holdings and subtracts all transaction since December 31st to come to the
     // holdings at that date.
-    fn eoy_traditional_holdings(&mut self) -> Option<ShareValues> {
+    fn eoy_traditional_holdings(&mut self, year: u32) -> Option<ShareValues> {
         let mut enough_transaction = false;
         if let Some(trad_holdings) = self.traditional_shares_option {
             if self.transactions.is_empty() {
@@ -1080,8 +1079,8 @@ impl VanguardHoldings {
                 None
             } else {
                 let mut eoy_holdings = trad_holdings;
-                let today = Local::now().date_naive();
-                let previous_year = NaiveDate::from_ymd_opt(today.year() - 1, 12, 31)?;
+                let previous_year = NaiveDate::from_ymd_opt(year as i32 - 1, 12, 31)?;
+                let following_year = previous_year + Duration::days(365);
                 for transaction in &self.transactions {
                     // If the transaction is newer thand December 31st of the previous year,
                     // subtract from the current holdings.  Also stores a true value if anything is
@@ -1101,7 +1100,9 @@ impl VanguardHoldings {
                                 transaction.shares,
                             );
                         } else if transaction.transaction_type == TransactionType::DISTRIBUTION {
-                            self.distributions -= transaction.net_amount
+                            if transaction.trade_date < following_year {
+                                self.distributions -= transaction.net_amount
+                            }
                         }
                     } else {
                         enough_transaction = true;
