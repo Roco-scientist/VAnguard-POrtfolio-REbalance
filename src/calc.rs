@@ -29,8 +29,12 @@ const HIGH_TO_LOW_RISK: [StockSymbol; 9] = [
 /// portfolio.
 pub fn to_buy(vanguard_holdings: VanguardHoldings, args: Args) -> Result<VanguardRebalance> {
     let mut rebalance = VanguardRebalance::new();
-    let (traditional_ira_account_option, roth_ira_account_option, brokerage_account_option, target_overall_retirement_option) =
-        retirement_calc(&vanguard_holdings, args.clone())?;
+    let (
+        traditional_ira_account_option,
+        roth_ira_account_option,
+        brokerage_account_option,
+        target_overall_retirement_option,
+    ) = retirement_calc(&vanguard_holdings, args.clone())?;
     if let Some(traditional_account) = traditional_ira_account_option {
         rebalance.add_account_holdings(traditional_account, HoldingType::TraditionalIra)
     }
@@ -39,7 +43,7 @@ pub fn to_buy(vanguard_holdings: VanguardHoldings, args: Args) -> Result<Vanguar
     }
     if let Some(brokerage_account) = brokerage_account_option {
         rebalance.add_account_holdings(brokerage_account, HoldingType::Brokerage)
-    }else if let Some(brokerage_holdings) = vanguard_holdings.brokerage_holdings() {
+    } else if let Some(brokerage_holdings) = vanguard_holdings.brokerage_holdings() {
         rebalance.add_account_holdings(
             brokerage_calc(vanguard_holdings.stock_quotes(), brokerage_holdings, args)?,
             HoldingType::Brokerage,
@@ -161,8 +165,8 @@ fn retirement_calc(
         roth_total = roth_holdings.total_value();
         roth_holdings_final = roth_holdings;
     }
-        // If there are both Roth and Traditional accounts, shift the risky assets to the roth
-        // account
+    // If there are both Roth and Traditional accounts, shift the risky assets to the roth
+    // account
     if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
         traditional_holdings.add_stock_value(
             StockSymbol::VMFXX,
@@ -181,7 +185,7 @@ fn retirement_calc(
             brokerage_holdings.add_stock_value(
                 StockSymbol::VMFXX,
                 brokerage_holdings.stock_value(StockSymbol::VMFXX) + args.brokerage_cash_add,
-                                              );
+            );
             holdings_value += brokerage_holdings.total_value();
             us_stock_add += args.brokerage_us_stock_add;
             us_bond_add += args.brokerage_us_bond_add;
@@ -194,7 +198,10 @@ fn retirement_calc(
     }
 
     let mut target_overall_retirement = ShareValues::new();
-    if [include_brokerage, include_traditional, include_roth].iter().any(|&x| x) {
+    if [include_brokerage, include_traditional, include_roth]
+        .iter()
+        .any(|&x| x)
+    {
         target_overall_retirement = ShareValues::new_target(
             sub_allocations,
             holdings_value,
@@ -256,7 +263,11 @@ fn retirement_calc(
         );
         let brokerage_difference = brokerage_target - brokerage_holdings_final;
         let brokerage_purchase = brokerage_difference / vanguard_holdings.stock_quotes();
-        let brokerage_account = AccountHoldings::new(brokerage_holdings_final, brokerage_target, brokerage_purchase);
+        let brokerage_account = AccountHoldings::new(
+            brokerage_holdings_final,
+            brokerage_target,
+            brokerage_purchase,
+        );
         remaining_target = remaining_target - brokerage_target;
         brokerage_account_option = Some(brokerage_account);
     }
@@ -273,20 +284,20 @@ fn retirement_calc(
         traditional_ira_account_option = Some(traditional_account);
     }
 
-// } else {
-//     let roth_target = ShareValues::new_target(
-//         sub_allocations,
-//         roth_holdings.total_value(),
-//         args.roth_us_stock_add,
-//         args.roth_us_bond_add,
-//         args.roth_int_stock_add,
-//         args.roth_int_bond_add,
-//     );
-//     let roth_difference = roth_target - roth_holdings;
-//     let roth_purchase = roth_difference / vanguard_holdings.stock_quotes();
-//     let roth_account = AccountHoldings::new(roth_holdings, roth_target, roth_purchase);
-//     roth_ira_account_option = Some(roth_account);
-// }
+    // } else {
+    //     let roth_target = ShareValues::new_target(
+    //         sub_allocations,
+    //         roth_holdings.total_value(),
+    //         args.roth_us_stock_add,
+    //         args.roth_us_bond_add,
+    //         args.roth_int_stock_add,
+    //         args.roth_int_bond_add,
+    //     );
+    //     let roth_difference = roth_target - roth_holdings;
+    //     let roth_purchase = roth_difference / vanguard_holdings.stock_quotes();
+    //     let roth_account = AccountHoldings::new(roth_holdings, roth_target, roth_purchase);
+    //     roth_ira_account_option = Some(roth_account);
+    // }
     // } else if let Some(mut traditional_holdings) = vanguard_holdings.traditional_ira_holdings() {
     //     traditional_holdings.add_stock_value(
     //         StockSymbol::VMFXX,

@@ -78,6 +78,7 @@ impl StockSymbol {
             "VMFXX" => StockSymbol::VMFXX,
             "VTI" => StockSymbol::VTI,
             "VTIVX" => StockSymbol::VTIVX,
+            "" => StockSymbol::Empty,
             _ => {
                 eprintln!("{} is not supported within this algorithm\n", symbol);
                 StockSymbol::Other(symbol.to_string())
@@ -1315,6 +1316,58 @@ pub struct Transaction {
     symbol: StockSymbol,
     shares: f32,
     net_amount: f32,
+    transaction_type: TransactionType,
+}
+
+#[derive(Clone, Eq, Hash, PartialEq, Debug)]
+enum TransactionType {
+    CONVERSIONOUT,
+    DIVIDEND,
+    REINVESTMENT,
+    ADVISORFEE,
+    BUY,
+    CONVERSIONIN,
+    SELL,
+    FUNDSRECEIVED,
+    SWEEPOUT,
+    SWEEPIN,
+    DISTRIBUTION,
+    Other(String),
+}
+
+impl TransactionType {
+    /// new creates a new StockSymbol enum based on the string value.
+    ///
+    ///  # Example
+    ///
+    ///  ```
+    ///  use vapore::holdings::TransactionType;
+    ///
+    ///  let div = TransactionType::new("Dividend");
+    ///  assert_eq!(div, TransactionType::DIVIDEND);
+    ///  ```
+    pub fn new(transaction_type: &str) -> Self {
+        match transaction_type {
+            "Conversion (outgoing)" => TransactionType::CONVERSIONOUT,
+            "Dividend" => TransactionType::DIVIDEND,
+            "Reinvestment" => TransactionType::REINVESTMENT,
+            "Advisor fee" => TransactionType::ADVISORFEE,
+            "Buy" => TransactionType::BUY,
+            "Conversion (incoming)" => TransactionType::CONVERSIONIN,
+            "Sell" => TransactionType::SELL,
+            "Funds Received" => TransactionType::FUNDSRECEIVED,
+            "Sweep out" => TransactionType::SWEEPOUT,
+            "Sweep in" => TransactionType::SWEEPIN,
+            "Distribution" => TransactionType::DISTRIBUTION,
+            _ => {
+                eprintln!(
+                    "{} is not supported within this algorithm\n",
+                    transaction_type
+                );
+                TransactionType::Other(transaction_type.to_string())
+            }
+        }
+    }
 }
 
 /// parse_csv_download takes in the file path of the downloaded file from Vanguard and parses it
@@ -1392,15 +1445,12 @@ pub async fn parse_csv_download(
                     let mut symbol_option = None;
                     let mut shares_option = None;
                     let mut net_amount_option = None;
+                    let mut transaction_type_option = None;
                     for (value, head) in row_split.iter().zip(&transaction_header) {
                         match head.as_str() {
                             "Account Number" => account_num_option = Some(value.parse::<u32>()?),
                             "Symbol" => {
-                                if value.chars().count() > 1 {
-                                    symbol_option = Some(StockSymbol::new(value))
-                                } else {
-                                    break;
-                                }
+                                symbol_option = Some(StockSymbol::new(value))
                             }
                             "Shares" => shares_option = Some(value.parse::<f32>()?),
                             "Trade Date" => {
@@ -1408,6 +1458,7 @@ pub async fn parse_csv_download(
                                     Some(NaiveDate::parse_from_str(value, "%Y-%m-%d")?)
                             }
                             "Net Amount" => net_amount_option = Some(value.parse::<f32>()?),
+                            "Transaction Type" => transaction_type_option = Some(TransactionType::new(value)),
                             _ => continue,
                         }
                     }
@@ -1418,13 +1469,16 @@ pub async fn parse_csv_download(
                                     if let Some(shares) = shares_option {
                                         if let Some(trade_date) = trade_date_option {
                                             if let Some(net_amount) = net_amount_option {
-                                                transactions.push(Transaction {
-                                                    _account_number: account_number,
-                                                    symbol,
-                                                    shares,
-                                                    trade_date,
-                                                    net_amount,
-                                                })
+                                                if let Some(transaction_type) = transaction_type_option{
+                                                    transactions.push(Transaction {
+                                                        _account_number: account_number,
+                                                        symbol,
+                                                        shares,
+                                                        trade_date,
+                                                        net_amount,
+                                                        transaction_type,
+                                                    })
+                                                }
                                             }
                                         }
                                     }
