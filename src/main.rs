@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
             .unwrap() as f32;
         args.brokerage_us_stock_add += alpaca_equity;
     }
-    let vanguard_holdings =
+    let mut vanguard_holdings =
         vapore::holdings::parse_csv_download(&args.csv_path, args.clone()).await?;
 
     // If an age is given, print the minumum distribution needed for the year
@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
                 traditional_value,
                 &args.distribution_table_path,
             )?;
-            println!("\n\nEnd of year traditional IRA account value: ${:?}\nMinimum distribution: ${:.2}\n\n", traditional_value, minimum_distribution);
+            println!("\n\nEnd of year traditional IRA account value: ${:?}\nMinimum distribution: ${:.2}\nDistribution so far: ${:.2}\nDistribution needed: ${:.2}\n\n", traditional_value, minimum_distribution, vanguard_holdings.distributions(), (minimum_distribution - vanguard_holdings.distributions()).max(0.0));
         }
     }
     //    .unwrap_or_else(|err| panic!("Holdings error: {}", err));

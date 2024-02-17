@@ -1,5 +1,5 @@
 use crate::asset::SubAllocations;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{Datelike, Local, NaiveDate};
 use std::{
     collections::HashMap,
@@ -9,7 +9,7 @@ use std::{
     ops::{Add, Div, Mul, Sub},
     vec::Vec,
 };
-use time::{macros::format_description, OffsetDateTime};
+use time::{macros::format_description, Duration, OffsetDateTime};
 use yahoo_finance_api as yahoo;
 
 // STOCK_DESCRIPTION holds the descriptions for the stock symbols which is used to print and
@@ -336,8 +336,24 @@ pub async fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
         Ok(0.0)
     } else {
         let provider = yahoo::YahooConnector::new();
-        let response = provider.get_latest_quotes(stock_str, "1m").await?;
-        Ok(response.last_quote()?.close as f32)
+        let response_err = provider
+            .get_latest_quotes(stock_str, "1m")
+            .await
+            .with_context(|| format!("Latest quote error for: {}", stock_str));
+        // If the market is closed, an error occurs.  If so, get quote history then the last quote
+        if let Ok(response) = response_err {
+            Ok(response.last_quote()?.close as f32)
+        } else {
+            let today = OffsetDateTime::now_utc();
+            let week_ago = today - Duration::days(7);
+            let response = provider
+                .get_quote_history(stock_str, week_ago, today)
+                .await
+                .with_context(|| {
+                    format!("Both attempts at quote retrieval failed for: {}", stock_str)
+                })?;
+            Ok(response.last_quote()?.close as f32)
+        }
     }
 }
 
@@ -369,7 +385,10 @@ pub async fn get_yahoo_eoy_quote(stock_symbol: StockSymbol) -> Result<f32> {
             OffsetDateTime::parse(&format!("{}-12-25 00:00:01 -05", today.year() - 1), format)?;
         let stop =
             OffsetDateTime::parse(&format!("{}-12-31 23:59:59 -05", today.year() - 1), format)?;
-        let response = provider.get_quote_history(stock_str, start, stop).await?;
+        let response = provider
+            .get_quote_history(stock_str, start, stop)
+            .await
+            .with_context(|| format!("Quote history error for: {}", stock_str))?;
         Ok(response.quotes()?.last().unwrap().close as f32)
     }
 }
@@ -968,6 +987,7 @@ pub struct VanguardHoldings {
     quotes: ShareValues,
     transactions: Vec<Transaction>,
     traditional_shares_option: Option<ShareValues>,
+    distributions: f32,
 }
 
 impl VanguardHoldings {
@@ -991,6 +1011,7 @@ impl VanguardHoldings {
             quotes,
             transactions: Vec::new(),
             traditional_shares_option: None,
+            distributions: 0.0,
         }
     }
 
@@ -1032,9 +1053,12 @@ impl VanguardHoldings {
     pub fn transactions(&self) -> Vec<Transaction> {
         self.transactions.clone()
     }
+    pub fn distributions(&self) -> f32 {
+        self.distributions
+    }
     // Calculated the previous end of year holdings value based on the holdings times the quotes
     // from December 31st of the previous year.
-    pub async fn eoy_value(&self) -> Result<Option<f32>> {
+    pub async fn eoy_value(&mut self) -> Result<Option<f32>> {
         if let Some(holdings) = self.eoy_traditional_holdings() {
             let mut quotes = ShareValues::new_quote();
             quotes.add_missing_eoy_quotes().await?;
@@ -1046,7 +1070,7 @@ impl VanguardHoldings {
     }
     // Takes the current holdings and subtracts all transaction since December 31st to come to the
     // holdings at that date.
-    fn eoy_traditional_holdings(&self) -> Option<ShareValues> {
+    fn eoy_traditional_holdings(&mut self) -> Option<ShareValues> {
         let mut enough_transaction = false;
         if let Some(trad_holdings) = self.traditional_shares_option {
             if self.transactions.is_empty() {
@@ -1071,11 +1095,13 @@ impl VanguardHoldings {
                                 transaction.symbol.clone(),
                                 transaction.net_amount,
                             );
-                        } else {
+                        } else if transaction.symbol != StockSymbol::Empty {
                             eoy_holdings.subtract_stock_value(
                                 transaction.symbol.clone(),
                                 transaction.shares,
                             );
+                        } else if transaction.transaction_type == TransactionType::DISTRIBUTION {
+                            self.distributions -= transaction.net_amount
                         }
                     } else {
                         enough_transaction = true;
@@ -1449,16 +1475,16 @@ pub async fn parse_csv_download(
                     for (value, head) in row_split.iter().zip(&transaction_header) {
                         match head.as_str() {
                             "Account Number" => account_num_option = Some(value.parse::<u32>()?),
-                            "Symbol" => {
-                                symbol_option = Some(StockSymbol::new(value))
-                            }
+                            "Symbol" => symbol_option = Some(StockSymbol::new(value)),
                             "Shares" => shares_option = Some(value.parse::<f32>()?),
                             "Trade Date" => {
                                 trade_date_option =
                                     Some(NaiveDate::parse_from_str(value, "%Y-%m-%d")?)
                             }
                             "Net Amount" => net_amount_option = Some(value.parse::<f32>()?),
-                            "Transaction Type" => transaction_type_option = Some(TransactionType::new(value)),
+                            "Transaction Type" => {
+                                transaction_type_option = Some(TransactionType::new(value))
+                            }
                             _ => continue,
                         }
                     }
@@ -1469,7 +1495,9 @@ pub async fn parse_csv_download(
                                     if let Some(shares) = shares_option {
                                         if let Some(trade_date) = trade_date_option {
                                             if let Some(net_amount) = net_amount_option {
-                                                if let Some(transaction_type) = transaction_type_option{
+                                                if let Some(transaction_type) =
+                                                    transaction_type_option
+                                                {
                                                     transactions.push(Transaction {
                                                         _account_number: account_number,
                                                         symbol,
@@ -1554,5 +1582,6 @@ pub async fn parse_csv_download(
         quotes,
         transactions,
         traditional_shares_option,
+        distributions: 0.0,
     })
 }
