@@ -335,7 +335,7 @@ pub async fn get_yahoo_quote(stock_symbol: StockSymbol) -> Result<f32> {
         eprintln!("Stock symbol not supported for yahoo retrieval");
         Ok(0.0)
     } else {
-        let provider = yahoo::YahooConnector::new();
+        let provider = yahoo::YahooConnector::new()?;
         let response_err = provider
             .get_latest_quotes(stock_str, "1m")
             .await
@@ -376,7 +376,7 @@ pub async fn get_yahoo_eoy_quote(stock_symbol: StockSymbol, year: u32) -> Result
         eprintln!("Stock symbol not supported for yahoo retrieval");
         Ok(0.0)
     } else {
-        let provider = yahoo::YahooConnector::new();
+        let provider = yahoo::YahooConnector::new()?;
         let format = format_description!(
             "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour sign:mandatory]"
         );
